@@ -1,6 +1,7 @@
 from langgraph.graph import MessagesState
 from langgraph.graph import StateGraph, START
-from langchain_openai import ChatOpenAI
+from langchain_community.chat_models import ChatOllama
+from langchain.agents import initialize_agent, Tool
 from langchain_core.messages import SystemMessage
 from langgraph.prebuilt import ToolNode
 from langgraph.prebuilt import tools_condition
@@ -9,13 +10,46 @@ from langgraph.checkpoint.memory import MemorySaver
 from dotenv import load_dotenv
 load_dotenv()
 
-from utils.read_data import get_service_names, get_professionals_by_service, get_schedules_by_professional_name
+from utils.read_data import get_phone_numbers, get_service_names, get_department_names, get_professionals_by_service, get_schedules_by_professional_name
 
-tools = [get_service_names, get_professionals_by_service, get_schedules_by_professional_name]
+tools = [
+    Tool(
+        name="get_phone_numbers",
+        func=get_phone_numbers,
+        description="Obtiene la lista de los números de whatsapp"
+    ),
+    Tool(
+        name="get_service_names",
+        func=get_service_names,
+        description="Obtiene la lista de servicios disponibles."
+    ),
+    Tool(
+        name="get_department_names",
+        func=get_department_names,
+        description="Obtiene la lista de los departamentos disponibles."
+    ),
+    Tool(
+        name="get_professionals_by_service",
+        func=get_professionals_by_service,
+        description="Obtiene profesionales según un servicio."
+    ),
+    Tool(
+        name="get_schedules_by_professional_name",
+        func=get_schedules_by_professional_name,
+        description="Obtiene horarios de un profesional por nombre."
+    ),
+]
 
-# Define the nodes 
-llm = ChatOpenAI(model="gpt-4o", temperature=0)
-llm = llm.bind_tools(tools)
+# Crea el modelo Ollama
+llm = ChatOllama(model="gpt-oss:20b", temperature=0)
+
+# Inicializa el agente con tools
+agent = initialize_agent(
+    tools,
+    llm,
+    agent="zero-shot-react-description",
+    verbose=True
+)
 
 def assistant(state: MessagesState):
     system_message = SystemMessage(content="""Eres un **asistente profesional de agendamiento de citas médicas**. Tu rol es ayudar a los pacientes a programar sus citas de manera eficiente y profesional.
