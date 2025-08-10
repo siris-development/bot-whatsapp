@@ -1,0 +1,9 @@
+{
+    "dependencies": ["."],
+    "graphs": {
+        "agent-workflow": "./app/agent_workflow.py:graph",
+        "agent-tool": "./app/tool.py:graph"
+    },
+    "python_version": "3.13",
+    "env": "agent-env"
+}

@@ -1,0 +1,241 @@
+{
+  "users": [
+    {
+      "whatsapp_number": "+573124567896",
+      "name": "Test 1",
+      "id_type": "CC",
+      "id": "12314143",
+      "date_birth": "1990-09-12"
+    },
+    {
+      "whatsapp_number": "+573154567813",
+      "name": "Test 2",
+      "id_type": "TI",
+      "id": "123141321",
+      "date_birth": "1990-09-12"
+    },
+    {
+      "whatsapp_number": "+573124567896",
+      "name": "Test 3",
+      "id_type": "CC",
+      "id": "12131432",
+      "date_birth": "1990-09-12"
+    }
+  ],
+  "departments": [
+    {
+      "_id": "department_01",
+      "name": "Medicina General"
+    },
+    {
+      "_id": "department_02",
+      "name": "Odontologia"
+    },
+    {
+      "_id": "department_03",
+      "name": "Medicina Interna"
+    },
+    {
+      "_id": "department_04",
+      "name": "Pediatría"
+    }
+  ],
+  "services": [
+    {
+      "_id": "service_001",
+      "service_name": "Consulta Medica",
+      "professionals": [
+        "profesional_67890",
+        "profesional_67891"
+      ],
+      "department": "department_01"
+    },
+    {
+      "_id": "service_002",
+      "service_name": "Odontologia",
+      "professionals": [
+        "profesional_67892"
+      ],
+      "department": "department_02"
+    },
+    {
+      "_id": "service_003",
+      "service_name": "Medicina Interna",
+      "professionals": [
+        "profesional_67893"
+      ],
+      "department": "department_03"
+    },
+    {
+      "_id": "service_004",
+      "service_name": "Pediatría",
+      "professionals": [
+        "profesional_67894"
+      ],
+      "department": "department_04"
+    }
+  ],
+  "professionals": [
+    {
+      "_id": "profesional_67890",
+      "personal_info": {
+        "name": "Medico 1",
+        "specialty": "Medicina General"
+      }
+    },
+    {
+      "_id": "profesional_67891",
+      "personal_info": {
+        "name": "Medico 2",
+        "specialty": "Medicina General"
+      }
+    },
+    {
+      "_id": "profesional_67892",
+      "personal_info": {
+        "name": "Odontologo 1",
+        "specialty": "Odontologia"
+      }
+    },
+    {
+      "_id": "profesional_67893",
+      "personal_info": {
+        "name": "Medico 3",
+        "specialty": "Medicina Interna"
+      }
+    },
+    {
+      "_id": "profesional_67894",
+      "personal_info": {
+        "name": "Medico 4",
+        "specialty": "Pediatría"
+      }
+    }
+  ],
+  "schedules": [
+    {
+      "_id": "schedule_001",
+      "professional_id": "profesional_67890",
+      "professional_name": "Medico 1",
+      "daily_schedules": [
+        {
+          "date": "2024-07-15",
+          "time": "08:00",
+          "is_available": true
+        },
+        {
+          "date": "2024-07-16",
+          "time": "14:00",
+          "is_available": true
+        },
+        {
+          "date": "2024-07-17",
+          "time": "15:30",
+          "is_available": true
+        }
+      ]
+    },
+    {
+      "_id": "schedule_002",
+      "professional_id": "profesional_67891",
+      "professional_name": "Medico 2",
+      "daily_schedules": [
+        {
+          "date": "2024-07-18",
+          "time": "08:00",
+          "is_available": true
+        },
+        {
+          "date": "2024-07-19",
+          "time": "08:00",
+          "is_available": true
+        },
+        {
+          "date": "2024-07-22",
+          "time": "08:00",
+          "is_available": true
+        }
+      ]
+      
+    },
+    {
+      "_id": "schedule_003",
+      "professional_id": "profesional_67892",
+      "professional_name": "Medico 3",
+      "daily_schedules": [
+        {
+          "date": "2024-07-18",
+          "time": "08:00",
+          "is_available": true
+        },
+        {
+          "date": "2024-07-19",
+          "time": "08:00",
+          "is_available": true
+        },
+        {
+          "date": "2024-07-22",
+          "time": "08:00",
+          "is_available": true
+        },
+
+        {
+          "date": "2024-07-24",
+          "time": "08:00",
+          "is_available": true
+        }
+      ]
+    },
+    {
+      "_id": "schedule_004",
+      "professional_id": "profesional_67893",
+      "professional_name": "Medico 4",
+      "daily_schedules": [
+        {
+          "date": "2024-07-18",
+          "time": "08:00",
+          "is_available": true
+        },
+        {
+          "date": "2024-07-19",
+          "time": "08:00",
+          "is_available": true
+        },
+        {
+          "date": "2024-07-22",
+          "time": "08:00",
+          "is_available": true
+        },
+        {
+          "date": "2024-07-23",
+          "time": "08:00",
+          "is_available": true
+        }
+      ]
+    }
+  ],
+  "appoinments": [
+    {
+      "_id": "appointment_001",
+      "user_id": "12314143",
+      "service_id": "service_001",
+      "professional_id": "profesional_67890",
+      "schedule": {
+        "date": "2024-07-15",
+        "time": "08:00"
+      },
+      "status": "scheduled"
+    },
+    {
+      "_id": "appointment_002",
+      "user_id": "123141321",
+      "service_id": "service_002",
+      "professional_id": "profesional_67892",
+      "schedule": {
+        "date": "2024-07-18",
+        "time": "08:00"
+      },
+      "status": "scheduled"
+    }
+  ]
+}
