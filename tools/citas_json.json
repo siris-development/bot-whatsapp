@@ -43,7 +43,7 @@
   "services": [
     {
       "_id": "service_001",
-      "service_name": "Consulta Medica",
+      "name": "Consulta Medica",
       "professionals": [
         "profesional_67890",
         "profesional_67891"
@@ -52,7 +52,7 @@
     },
     {
       "_id": "service_002",
-      "service_name": "Odontologia",
+      "name": "Odontologia",
       "professionals": [
         "profesional_67892"
       ],
@@ -60,7 +60,7 @@
     },
     {
       "_id": "service_003",
-      "service_name": "Medicina Interna",
+      "name": "Medicina Interna",
       "professionals": [
         "profesional_67893"
       ],
@@ -68,7 +68,7 @@
     },
     {
       "_id": "service_004",
-      "service_name": "Pediatría",
+      "name": "Pediatría",
       "professionals": [
         "profesional_67894"
       ],
@@ -116,7 +116,6 @@
     {
       "_id": "schedule_001",
       "professional_id": "profesional_67890",
-      "professional_name": "Medico 1",
       "daily_schedules": [
         {
           "date": "2024-07-15",
@@ -138,7 +137,6 @@
     {
       "_id": "schedule_002",
       "professional_id": "profesional_67891",
-      "professional_name": "Medico 2",
       "daily_schedules": [
         {
           "date": "2024-07-18",
@@ -161,7 +159,6 @@
     {
       "_id": "schedule_003",
       "professional_id": "profesional_67892",
-      "professional_name": "Medico 3",
       "daily_schedules": [
         {
           "date": "2024-07-18",
@@ -189,7 +186,6 @@
     {
       "_id": "schedule_004",
       "professional_id": "profesional_67893",
-      "professional_name": "Medico 4",
       "daily_schedules": [
         {
           "date": "2024-07-18",
