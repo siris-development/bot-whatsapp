@@ -19,7 +19,7 @@ tools = [
 tool_node = ToolNode(tools)
 
 # Crea el modelo Ollama
-model = init_chat_model("llama3.1:8b", model_provider="ollama")
+model = init_chat_model("gpt-oss:20b", model_provider="ollama")
 model_with_tools = model.bind_tools(tools)
 
 def should_continue(state: MessagesState):

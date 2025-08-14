@@ -10,17 +10,11 @@ def guardar_cita(nit: int, idSede: int, idEspecialidad: int, fecha:str, guardarC
 
     Args:
         nit (int): Número de identificación tributaria de la entidad.
-        idSede (int): Identificador de la sede.
-        idEspecialidad (int): Identificador de la especialidad.
-        fecha (str): Fecha de la cita en formato 'YYYY-MM-DD'.
         guardarCita (GuardarCita): Objeto con la información necesaria para guardar la cita.
     """
     headers = { "Content-Type": "application/json"}
     params = {
         "nit": nit,
-        "idSede": idSede,
-        "idEspecialidad": idEspecialidad,
-        "fecha": fecha
     }
     post_data = {
         "idUsuario": guardarCita.idUsuario,

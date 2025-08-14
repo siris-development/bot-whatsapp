@@ -50,17 +50,18 @@ def system_prompt_agent(tools_description: str):
     {tools_description}
 
     ## Booking process guide:
-    1. Ask for the NIT (identification number) before continuing.
-    2. Retrieve and present the list of available departments. (Use tool: get_sedes, returns a list of Sede objects)
-    3. Retrieve and present the list of available specialities. (Use tool: get_especialidades, returns a list of Especialidad objects)
-    4. Retrieve available schedules for a specific department, one or multiple specialities, before calling the tool, make sure you ask for the selected date or date range since you already have the other parameters. (Use tool: get_citas_disponibles, returns a list of CitaDisponible objects)
-    5. Save the appointment. (Use tool: guardar_cita, requires a GuardarCita object and returns success confirmation)
+    1. Ask for the NIT (identification number) before continuing. 
+    2. Use NIT param to call all the available tools
+    3. Retrieve and present the list of available departments. (Use tool: get_sedes, returns a list of Sede objects)
+    4. Retrieve and present the list of available specialities. (Use tool: get_especialidades, returns a list of Especialidad objects)
+    5. Retrieve available schedules for a specific department, one or multiple specialities, before calling the tool, make sure you ask for the selected date or date range since you already have the other parameters. (Use tool: get_citas_disponibles, returns a list of CitaDisponible objects)
+    6. Save the appointment. (Use tool: guardar_cita, requires a GuardarCita object and returns success confirmation)
 
     ## Schemas:
     Sede: {{ idSede: integer, nomSede: string }}
     Especialidad: {{ idEspecialidad: integer, descripcionEspecialidad: string }}
     CitaDisponible: {{ idSede, idProfesional, idEspecialidad, idDia, profesional, especialidad, dia, horaInicio, horaFin, turnosDisponibles }}
-    GuardarCita: {{ idUsuario, idSede, idProfesional, idEspecialidad, fecha (date-time), hora, idResolucion }}
+    GuardarCita: {{ idUsuario, idSede, idProfesional, idEspecialidad,fecha, hora, idResolucion }}
     """
     
     return prompt
