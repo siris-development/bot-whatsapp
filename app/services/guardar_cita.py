@@ -8,17 +8,12 @@ def guardar_cita(nit: int, idSede: int, idEspecialidad: int, fecha:str, guardarC
     """
     Guarda una cita médica en el sistema para un NIT, sede, especialidad y fecha determinados.
 
-    Realiza una solicitud POST al endpoint `/guardar-cita` enviando los datos del modelo `GuardarCita`.
-
     Args:
         nit (int): Número de identificación tributaria de la entidad.
         idSede (int): Identificador de la sede.
         idEspecialidad (int): Identificador de la especialidad.
         fecha (str): Fecha de la cita en formato 'YYYY-MM-DD'.
         guardarCita (GuardarCita): Objeto con la información necesaria para guardar la cita.
-
-    Returns:
-        None: Imprime la respuesta del servidor o un mensaje de error en consola.
     """
     headers = { "Content-Type": "application/json"}
     params = {
@@ -47,4 +42,11 @@ def guardar_cita(nit: int, idSede: int, idEspecialidad: int, fecha:str, guardarC
         resp.raise_for_status()
         print(resp.json())
     except requests.RequestException as e:
-        print(f"Error en POST: {e}")
+        try:
+            error_response = resp.json()
+            if isinstance(error_response, dict) and "statusCode" in error_response and "message" in error_response:
+                return error_response
+        except Exception:
+            pass
+        return str(e)
+    

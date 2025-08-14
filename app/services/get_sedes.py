@@ -4,17 +4,12 @@ from utils.constants import Constants
 from app.models.sede_model import Sede
 
 @tool
-def get_sedes(nit: int):
+def get_sedes(nit: int) -> list[Sede]:
     """
     Obtiene la lista de sedes para un NIT específico.
 
-    Realiza una solicitud GET al endpoint `/sedes` y devuelve una lista de objetos `Sede`.
-
     Args:
         nit (int): Número de identificación tributaria de la entidad.
-
-    Returns:
-        list[Sede]: Lista de sedes obtenidas. Lista vacía si ocurre un error.
     """
     params = {"nit": nit}
 
@@ -22,8 +17,14 @@ def get_sedes(nit: int):
         resp = requests.get(url=f"{Constants.base_url}/sedes", params=params)
         resp.raise_for_status()
         data = resp.json()
-        sedes = [Sede(**item) for item in data]
+        sedes = [Sede(**item).model_dump() for item in data]
         return sedes
     except requests.RequestException as e:
-        print(f"Error en GET {Constants.base_url}: {e}")
-        return []
+        try:
+            error_response = resp.json()
+            if isinstance(error_response, dict) and "statusCode" in error_response and "message" in error_response:
+                return error_response
+        except Exception:
+            pass
+        return str(e)
+    

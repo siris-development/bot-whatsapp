@@ -1,9 +1,8 @@
+from langchain.chat_models import init_chat_model
+from langgraph.prebuilt import ToolNode
+from langgraph.graph import MessagesState, StateGraph, START, END
+from langchain.schema import SystemMessage
 
-from langgraph.graph import StateGraph, END
-from langchain_core.messages import SystemMessage, ToolMessage
-from langchain_core.runnables import RunnableLambda
-from langchain_ollama.chat_models import ChatOllama
-from app.models.agent_state import AgentState
 from app.services.get_citas_disponibles import get_citas_disponibles
 from app.services.get_especialidades import get_especialidades
 from app.services.get_sedes import get_sedes
@@ -11,44 +10,45 @@ from app.services.guardar_cita import guardar_cita
 from utils.constants import system_prompt_agent
 
 tools = [
-    get_citas_disponibles,
     get_especialidades,
     get_sedes,
+    get_citas_disponibles,
     guardar_cita
 ]
 
+tool_node = ToolNode(tools)
+
 # Crea el modelo Ollama
-llm = ChatOllama(model="llama3.1:8b")
-llm_with_tools = llm.bind_tools(tools)
+model = init_chat_model("llama3.1:8b", model_provider="ollama")
+model_with_tools = model.bind_tools(tools)
 
-def should_continue(state):
-    return "continue" if state["messages"][-1].tool_calls else "end"
+def should_continue(state: MessagesState):
+    messages = state["messages"]
+    last_message = messages[-1]
+    if last_message.tool_calls:
+        return "tools"
+    return END
 
-def call_model(state, config):
+
+def call_model(state: MessagesState):
     tools_description = [tool.name for tool in tools]
+    
+    # Crear el mensaje de sistema explícito
     system_message = SystemMessage(content=system_prompt_agent(tools_description))
-    return {"messages": [llm_with_tools.invoke([system_message] + state["messages"], config=config)]}
+    
+    # Combinar el system prompt con el historial del estado
+    messages = [system_message] + state["messages"]
+    
+    response = model_with_tools.invoke(messages)
+    return {"messages": [response]}
 
-def _invoke_tool(tool_call):
-    tool_map = {tool.name: tool for tool in tools}
-    tool = tool_map.get(tool_call["name"])
-    result = tool.invoke(tool_call["args"])
-    return ToolMessage(content=result, tool_call_id=tool_call["id"])
 
-tool_executor = RunnableLambda(_invoke_tool)
+builder = StateGraph(MessagesState)
+builder.add_node("call_model", call_model)
+builder.add_node("tools", tool_node)
 
-def call_tools(state):
-    last_message = state["messages"][-1]
-    return {"messages": tool_executor.batch(last_message.tool_calls)}
+builder.add_edge(START, "call_model")
+builder.add_conditional_edges("call_model", should_continue, ["tools", END])
+builder.add_edge("tools", "call_model")
 
-# Grafo
-workflow = StateGraph(AgentState)
-
-workflow.add_node("agent", call_model)
-workflow.add_node("action", call_tools)
-
-workflow.set_entry_point("agent")
-workflow.add_conditional_edges("agent", should_continue, {"continue": "action", "end": END})
-workflow.add_edge("action", "agent")
-
-graph = workflow.compile()
+graph = builder.compile()
