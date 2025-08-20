@@ -1,7 +1,7 @@
 import requests
 from langchain.tools import tool
 from utils.constants import Constants
-from app.models.sede_model import Sede
+from app.schemas.sede_model import Sede
 
 @tool
 def get_sedes(nit: int) -> list[Sede]:

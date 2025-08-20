@@ -1,8 +1,7 @@
+
 from typing import List
-from app.models.cita_disponible_model import CitaDisponible
-from app.models.especialidad_model import Especialidad
-from app.models.guardar_cita_model import GuardarCita
-from app.models.sede_model import Sede
+
+from app.schemas.user_model import User
 
 
 class Constants:
@@ -37,7 +36,7 @@ def system_prompt_tool(tools_description: str):
     * Sé paciente y minucioso al recopilar toda la información necesaria
     * Si el horario solicitado no está disponible, sugiere la mejor alternativa posible"""
     
-def system_prompt_agent(tools_description: str):
+def system_prompt_agent(tools_description: str, nit: str, users: List[User], resolucionId: int):
     prompt = f"""You are a professional medical appointment scheduling assistant. Your role is to help patients book their appointments in a clear, efficient, and friendly manner.
 
     ## Your responsibilities:
@@ -50,18 +49,10 @@ def system_prompt_agent(tools_description: str):
     {tools_description}
 
     ## Booking process guide:
-    1. Ask for the NIT (identification number) before continuing. 
-    2. Use NIT param to call all the available tools
-    3. Retrieve and present the list of available departments. (Use tool: get_sedes, returns a list of Sede objects)
-    4. Retrieve and present the list of available specialities. (Use tool: get_especialidades, returns a list of Especialidad objects)
-    5. Retrieve available schedules for a specific department, one or multiple specialities, before calling the tool, make sure you ask for the selected date or date range since you already have the other parameters. (Use tool: get_citas_disponibles, returns a list of CitaDisponible objects)
-    6. Save the appointment. (Use tool: guardar_cita, requires a GuardarCita object and returns success confirmation)
-
-    ## Schemas:
-    Sede: {{ idSede: integer, nomSede: string }}
-    Especialidad: {{ idEspecialidad: integer, descripcionEspecialidad: string }}
-    CitaDisponible: {{ idSede, idProfesional, idEspecialidad, idDia, profesional, especialidad, dia, horaInicio, horaFin, turnosDisponibles }}
-    GuardarCita: {{ idUsuario, idSede, idProfesional, idEspecialidad,fecha, hora, idResolucion }}
+    1. Use NIT {nit} to call all the available tools
+    2. Retrieve and present the list of available departments. (Use tool: get_sedes, returns a list of Sede objects)
+    3. Retrieve and present the list of available specialities. (Use tool: get_especialidades, returns a list of Especialidad objects)
+    4. Retrieve available schedules for a specific department, one or multiple specialities, before calling the tool, make sure you ask for the selected date or date range since you already have the other parameters. (Use tool: get_citas_disponibles, returns a list of CitaDisponible objects)
+    5. Save the appointment. (Use tool: guardar_cita, requires a GuardarCita object and returns success confirmation)
     """
-    
     return prompt

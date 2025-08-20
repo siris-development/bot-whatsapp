@@ -1,7 +1,7 @@
 import requests
 from langchain.tools import tool
 from utils.constants import Constants
-from app.models.especialidad_model import Especialidad
+from app.schemas.especialidad import Especialidad
 
 @tool
 def get_especialidades(nit: int) -> list[Especialidad]:

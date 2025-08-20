@@ -1,7 +1,7 @@
 import requests
 from langchain.tools import tool
 from utils.constants import Constants
-from app.models.cita_disponible_model import CitaDisponible
+from app.schemas.cita_disponible import CitaDisponible
 
 @tool
 def get_citas_disponibles(nit: int, idSede: int, idEspecialidad: int, fecha:str) -> list[CitaDisponible]:

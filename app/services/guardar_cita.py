@@ -1,7 +1,7 @@
 import requests
 from langchain.tools import tool
 from utils.constants import Constants
-from app.models.guardar_cita_model import GuardarCita
+from app.schemas.guardar_cita import GuardarCita
 
 @tool
 def guardar_cita(nit: int, idSede: int, idEspecialidad: int, fecha:str, guardarCita: GuardarCita):
