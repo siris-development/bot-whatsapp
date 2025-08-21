@@ -1,14 +1,13 @@
 from langgraph.graph import StateGraph, START
 from langgraph.prebuilt import ToolNode, tools_condition
 from app.config import tools, llm_with_tools
-from app.redis_client import get_redis_history
 from app.redis_client import get_session
 
 from app.state import State
 from utils.constants import system_prompt_agent
 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables.history import RunnableWithMessageHistory
+from langchain_core.messages import HumanMessage
 
 def build_graph() -> StateGraph:
     graph_builder = StateGraph(State)
@@ -21,32 +20,36 @@ def build_graph() -> StateGraph:
 
         tools_description = [tool.name for tool in tools]
 
-        # Crear el mensaje de sistema explícito
+        # Mensaje de sistema con tu prompt dinámico
         system_message_content = system_prompt_agent(
-            tools_description=tools_description, 
-            nit=nit, 
+            tools_description=tools_description,
+            nit=nit,
             users=users,
-            resolucionId=resolucionId)
-        
-        # Create a prompt template
+            resolucionId=resolucionId,
+        )
+
+        # Prompt: sistema + TODA la conversación (incluye ToolMessages)
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", system_message_content),
-                MessagesPlaceholder(variable_name="history"),
-                ("human", "{input}"),
+                MessagesPlaceholder(variable_name="messages"),
             ]
         )
 
-        # Create the conversational chain
+        # Cadena con LLM habilitado para tools
         chain = prompt | llm_with_tools
 
-        # Create a runnable with message history
-        chain_with_history = RunnableWithMessageHistory(
-            chain, get_redis_history, input_messages_key="input", history_messages_key="history"
-        )
+        # Asegurar que los mensajes sean BaseMessage. Si vienen como str, los convertimos a HumanMessage
+        msgs_in = []
+        for m in state["messages"]:
+            if isinstance(m, str):
+                msgs_in.append(HumanMessage(content=m))
+            else:
+                msgs_in.append(m)
 
-        response = chain_with_history.invoke({"input": state["messages"]}, 
-                                             config={"configurable": {"session_id": state["sessionId"]}})
+        # Invocar el modelo con el historial completo (incluye tool outputs)
+        response = chain.invoke({"messages": msgs_in})
+
         return {"messages": [response]}
 
     graph_builder.add_node("call_model", call_model)
@@ -61,5 +64,3 @@ def build_graph() -> StateGraph:
     return graph_builder.compile()
 
 graph = build_graph()
-
-

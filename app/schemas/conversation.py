@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
-from app.schemas.user_model import User
+from app.schemas.user import User
 
 class ConversationInit(BaseModel):
     isValid: bool
