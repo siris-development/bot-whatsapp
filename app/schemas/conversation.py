@@ -9,7 +9,7 @@ class ConversationInit(BaseModel):
     messageId: str
     users: List[User]
     msgInit: str
-    resolucionId: int
+    idResolucion: int
 
 class ConversationError(BaseModel):
     isValid: bool

@@ -4,7 +4,7 @@ from utils.constants import Constants
 from app.schemas.guardar_cita import GuardarCita
 
 @tool
-def guardar_cita(nit: int, idSede: int, idEspecialidad: int, fecha:str, guardarCita: GuardarCita):
+def guardar_cita(nit: int, guardarCita: GuardarCita):
     """
     Guarda una cita médica en el sistema para un NIT, sede, especialidad y fecha determinados.
 

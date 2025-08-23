@@ -18,5 +18,5 @@ tools = [
 ]
 
 # Crea el modelo Ollama
-llm = init_chat_model("gpt-oss:20b", model_provider="ollama", base_url=OLLAMA_BASE_URL)
+llm = init_chat_model("gpt-oss:20b", model_provider="ollama", base_url=OLLAMA_BASE_URL, temperature=0)
 llm_with_tools = llm.bind_tools(tools)
