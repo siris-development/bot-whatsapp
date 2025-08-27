@@ -23,12 +23,12 @@ def guardar_cita(nit: int, guardarCita: GuardarCita):
         "idEspecialidad": guardarCita.idEspecialidad,
         "fecha": guardarCita.fecha,
         "hora": guardarCita.hora,
-        "idResolucion": guardarCita.idResolucion
+        "resolucionId": guardarCita.resolucionId
     }
 
     try:
         resp = requests.post(
-            url=f"{Constants.base_url}/guardar-cita",
+            url=f"{Constants.base_url}/cronhis/guardar-cita",
             headers=headers,
             params=params,
             json=post_data,

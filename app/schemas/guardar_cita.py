@@ -8,7 +8,7 @@ class GuardarCita(BaseModel):
     idEspecialidad: int
     fecha: str
     hora: str
-    idResolucion: int
+    resolucionId: int
 
     @field_validator('hora')
     @classmethod

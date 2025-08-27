@@ -8,7 +8,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-REDIS_URL = os.getenv("REDIS_URL_DEV")
+REDIS_URL = os.getenv("REDIS_URL_PROD")
 REDIS_SESSION_TTL = os.getenv("REDIS_SESSION_TTL")
 
 redis_client = redis.Redis.from_url(REDIS_URL)

@@ -1,20 +1,18 @@
 from pydantic import BaseModel
-from typing import List, Optional
-
+from typing import List
 from app.schemas.user import User
 
 class ConversationInit(BaseModel):
     isValid: bool
-    nit: str
-    messageId: str
-    users: List[User]
-    msgInit: str
-    idResolucion: int
-
-class ConversationError(BaseModel):
-    isValid: bool
     message: str
     msgInit: str
+    nit: str
+    to: str
+    users: List[User]
+    phoneNumberId: str
+    resolucionId: int
 
 class ConversationContinue(BaseModel):
-    messages: List[str]
+    to: str
+    phoneNumberId: str
+    message: str

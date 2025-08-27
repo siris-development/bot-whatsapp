@@ -14,7 +14,7 @@ def get_especialidades(nit: int) -> list[Especialidad]:
     params = {"nit": nit}
 
     try:
-        resp = requests.get(url=f"{Constants.base_url}/especialidades", params=params)
+        resp = requests.get(url=f"{Constants.base_url}/cronhis/especialidades", params=params)
         resp.raise_for_status()
         data = resp.json()
         especialidades = [Especialidad(**item).model_dump() for item in data]

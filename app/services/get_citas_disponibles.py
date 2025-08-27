@@ -22,7 +22,7 @@ def get_citas_disponibles(nit: int, idSede: int, idEspecialidad: int, fecha:str)
     }
 
     try:
-        resp = requests.get(url=f"{Constants.base_url}/citas-disponibles", params=params)
+        resp = requests.get(url=f"{Constants.base_url}/cronhis/citas-disponibles", params=params)
         resp.raise_for_status()
         data = resp.json()
         citas = [CitaDisponible(**item).model_dump() for item in data]

@@ -14,7 +14,7 @@ def get_sedes(nit: int) -> list[Sede]:
     params = {"nit": nit}
 
     try:
-        resp = requests.get(url=f"{Constants.base_url}/sedes", params=params)
+        resp = requests.get(url=f"{Constants.base_url}/cronhis/sedes", params=params)
         resp.raise_for_status()
         data = resp.json()
         sedes = [Sede(**item).model_dump() for item in data]

@@ -5,4 +5,6 @@ from langchain_core.messages import AnyMessage
 
 class State(TypedDict):
     sessionId: str
+    phoneNumberId: str
+    to: str
     messages: Annotated[list[AnyMessage], add_messages]
