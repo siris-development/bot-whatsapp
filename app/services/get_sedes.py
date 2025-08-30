@@ -1,20 +1,13 @@
 import requests
-from langchain.tools import tool
 from utils.constants import Constants
+from langchain_core.tools import tool
 from app.schemas.sede import Sede
 
 @tool
-def get_sedes(nit: int) -> list[Sede]:
-    """
-    Obtiene la lista de sedes para un NIT específico.
-
-    Args:
-        nit (int): Número de identificación tributaria de la entidad.
-    """
-    params = {"nit": nit}
-
+def get_sedes(nit: int) -> list:
+    """Obtiene la lista de sedes para un NIT específico."""
     try:
-        resp = requests.get(url=f"{Constants.base_url}/cronhis/sedes", params=params)
+        resp = requests.get(url=f"{Constants.base_url}/cronhis/sedes", params={"nit": nit})
         resp.raise_for_status()
         data = resp.json()
         sedes = [Sede(**item).model_dump() for item in data]
@@ -27,4 +20,3 @@ def get_sedes(nit: int) -> list[Sede]:
         except Exception:
             pass
         return str(e)
-    

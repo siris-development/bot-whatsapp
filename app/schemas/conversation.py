@@ -4,13 +4,12 @@ from app.schemas.user import User
 
 class ConversationInit(BaseModel):
     isValid: bool
-    message: str
-    msgInit: str
     nit: str
     to: str
     users: List[User]
+    msgInit: str
     phoneNumberId: str
-    resolucionId: int
+    idResolucion: int
 
 class ConversationContinue(BaseModel):
     to: str

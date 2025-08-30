@@ -1,7 +1,9 @@
 python-dotenv==1.0.1
 langgraph
+langchain
 langchain-community
 langchain-ollama
+langchain-openai>=0.3.29
 langgraph-cli
 langgraph-cli[inmem]
 langgraph-sdk
@@ -12,3 +14,4 @@ pandas
 openpyxl
 redis
 langchain-redis
+requests

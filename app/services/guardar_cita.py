@@ -1,40 +1,29 @@
 import requests
-from langchain.tools import tool
+from langchain_core.tools import tool
 from utils.constants import Constants
-from app.schemas.guardar_cita import GuardarCita
 
 @tool
-def guardar_cita(nit: int, guardarCita: GuardarCita):
-    """
-    Guarda una cita médica en el sistema para un NIT, sede, especialidad y fecha determinados.
-
-    Args:
-        nit (int): Número de identificación tributaria de la entidad.
-        guardarCita (GuardarCita): Objeto con la información necesaria para guardar la cita.
-    """
-    headers = { "Content-Type": "application/json"}
-    params = {
-        "nit": nit,
-    }
+def guardar_cita(nit: int, idUsuario: int, idSede: int, idProfesional: int, idEspecialidad: int, fecha: str, hora: str, idResolucion: int) -> dict:
+    """Guarda una cita médica en el sistema."""
+    headers = {"Content-Type": "application/json"}
     post_data = {
-        "idUsuario": guardarCita.idUsuario,
-        "idSede": guardarCita.idSede,
-        "idProfesional": guardarCita.idProfesional,
-        "idEspecialidad": guardarCita.idEspecialidad,
-        "fecha": guardarCita.fecha,
-        "hora": guardarCita.hora,
-        "resolucionId": guardarCita.resolucionId
+        "idUsuario": idUsuario,
+        "idSede": idSede,
+        "idProfesional": idProfesional,
+        "idEspecialidad": idEspecialidad,
+        "fecha": fecha,
+        "hora": hora,
+        "idResolucion": idResolucion
     }
-
     try:
         resp = requests.post(
             url=f"{Constants.base_url}/cronhis/guardar-cita",
             headers=headers,
-            params=params,
+            params={"nit": nit},
             json=post_data,
         )
         resp.raise_for_status()
-        print(resp.json())
+        return resp.json()
     except requests.RequestException as e:
         try:
             error_response = resp.json()
@@ -43,4 +32,3 @@ def guardar_cita(nit: int, guardarCita: GuardarCita):
         except Exception:
             pass
         return str(e)
-    

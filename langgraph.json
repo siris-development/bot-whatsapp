@@ -1,7 +1,6 @@
 {
     "dependencies": ["."],
     "graphs": {
-        "tool": "./app/tool.py:graph",
         "agent": "./app/graph.py:graph"
     },
     "python_version": "3.13",

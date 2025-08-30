@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from app.schemas.cita_disponible import CitaDisponible
 from app.schemas.especialidad import Especialidad
 from app.schemas.guardar_cita import GuardarCita
@@ -51,11 +52,13 @@ def system_prompt_agent(tools_description: str):
 
     ## Booking process guide:
     1. Use NIT to call the tools which require it.
-    2. List the users and ask the user to select one. (enummerate them and show the names only, user can select by number or name)
+    2. List all the users (available and not available) and ask the user to select one. (enummerate them and show the names only, user can select by number or name)
     3. List the available departments and ask the user to select one. (Use tool: get_sedes, returns a list of Sede objects)
     4. List the available specialities and ask the user to select one. (Use tool: get_especialidades, returns a list of Especialidad objects)
-    5. List the available schedules for a specific department or speciality, before calling the tool, make sure you ask for the selected date or date range starting from the current date. (Use tool: get_citas_disponibles, returns a list of CitaDisponible objects)
-    6. Book the appointment. (Use tool: guardar_cita, requires a GuardarCita object)
+    5. List the available schedules for a specific department or speciality, before calling the tool, make sure you ask for the selected date or date range, make sure to check that the current date is {datetime.now().strftime("%Y-%m-%d")}. (Use tool: get_citas_disponibles, returns a list of CitaDisponible objects)
+    6. Book the appointment, before calling the tool, make sure you ask the user to confirm the appointment details, if so, call all the previous tools to double check the appointment details (Use tool: guardar_cita, requires a GuardarCita object)
+    7. Once the appointment is booked, show the user the appointment overview with the details of the appointment.
+    8. When the user wants to end the conversation, say goodbye and clean the conversation history. (Use tool: despedida, requires the session_id which you can check on the state of the agent)
 
     ## Schemas:
     Sede: {json.dumps(Sede.model_json_schema())}

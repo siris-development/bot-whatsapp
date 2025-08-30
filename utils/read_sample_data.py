@@ -1,5 +1,5 @@
 from typing import List
-from langchain.tools import tool
+from langchain_core.tools import tool
 from utils.read_json import read_object
 
 tool_path = 'tools/citas_json.json'

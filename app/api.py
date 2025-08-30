@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from app.graph import graph
 from app.schemas.conversation import ConversationInit, ConversationContinue
-from app.redis_client import get_redis_history
+from app.redis_client import get_redis_history, clear_redis_history
 from app.schemas.whatsapp_response import WhatsAppMessage, WhatsAppResponse
+from langchain_core.messages import SystemMessage
 
 app = FastAPI()
 
@@ -39,17 +40,19 @@ def start_conversation(payload: ConversationInit):
     session_id = generate_session_id(payload.to, payload.phoneNumberId)
 
     history = get_redis_history(session_id)
-    history.clear()
 
-    history.add_ai_message(f"NIT: {payload.nit}")
-    history.add_ai_message(f"Users: {[u.model_dump() for u in payload.users]}")
-    history.add_ai_message(f"ResolucionId: {payload.resolucionId}")
+    # Agregar mensajes del sistema como SystemMessage para mejor compatibilidad
+    history.add_message(SystemMessage(content=f"NIT: {payload.nit}"))
+    history.add_message(SystemMessage(content=f"Users: {[u.model_dump() for u in payload.users]}"))
+    history.add_message(SystemMessage(content=f"idResolucion: {payload.idResolucion}"))
+
+    print(f"Session {session_id}: Added system messages to history")
+    print(f"History messages count: {len(history.messages)}")
 
     response = invoke_graph_with_params(session_id, payload.phoneNumberId, payload.to, [payload.msgInit])
     content, usage_metadata = process_ai_response(response)
 
     return create_whatsapp_response(session_id, payload.phoneNumberId, payload.to, content, usage_metadata)
-
 
 @app.post("/conversation/continue")
 def continue_conversation(payload: ConversationContinue):
@@ -60,6 +63,9 @@ def continue_conversation(payload: ConversationContinue):
         return {"error": "Session not found"}
     
     history.add_user_message(payload.message)
+    
+    print(f"Session {session_id}: Added user message to history")
+    print(f"History messages count: {len(history.messages)}")
 
     response = invoke_graph_with_params(session_id, payload.phoneNumberId, payload.to, history.messages)
     content, usage_metadata = process_ai_response(response)
@@ -68,7 +74,8 @@ def continue_conversation(payload: ConversationContinue):
 
 @app.post("/conversation/clear-history/{session_id}")
 def clear_history(session_id: str):
-    history = get_redis_history(session_id)  
-    history.clear()
-
-    return {"message": "History cleared successfully"}
+    try:
+        clear_redis_history(session_id)
+        return {"message": "History cleared successfully"}
+    except Exception as e:
+        return {"error": f"Failed to clear history: {str(e)}", "session_id": session_id}
