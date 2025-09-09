@@ -3,6 +3,7 @@ from app.graph import graph
 from app.schemas.conversation import ConversationInit, ConversationContinue
 from app.redis_client import get_redis_history, clear_redis_history
 from app.schemas.whatsapp_response import WhatsAppMessage, WhatsAppResponse
+from app.schemas.user import User
 from langchain_core.messages import SystemMessage
 
 app = FastAPI()
@@ -27,18 +28,21 @@ def create_whatsapp_response(session_id: str, phone_number_id: str, to: str, con
     )
 
 def invoke_graph_with_params(session_id: str, phone_number_id: str, to: str, messages: list) -> dict:
-    """Invoke the graph with common parameters."""
-    return graph.invoke({
+    """Invoke the graph with common parameters and user context."""
+    graph_params = {
         "sessionId": session_id,
         "phoneNumberId": phone_number_id,
         "to": to,
         "messages": messages
-    })
+    }
+    
+    return graph.invoke(graph_params)
 
 @app.post("/conversation/init")
 def start_conversation(payload: ConversationInit):
     session_id = generate_session_id(payload.to, payload.phoneNumberId)
 
+    # Verificar permisos del usuario
     history = get_redis_history(session_id)
 
     # Agregar mensajes del sistema como SystemMessage para mejor compatibilidad
@@ -58,14 +62,12 @@ def start_conversation(payload: ConversationInit):
 def continue_conversation(payload: ConversationContinue):
     session_id = generate_session_id(payload.to, payload.phoneNumberId)
 
+    # Verificar permisos del usuario    
     history = get_redis_history(session_id)
     if not history:
         return {"error": "Session not found"}
     
     history.add_user_message(payload.message)
-    
-    print(f"Session {session_id}: Added user message to history")
-    print(f"History messages count: {len(history.messages)}")
 
     response = invoke_graph_with_params(session_id, payload.phoneNumberId, payload.to, history.messages)
     content, usage_metadata = process_ai_response(response)
@@ -74,6 +76,7 @@ def continue_conversation(payload: ConversationContinue):
 
 @app.post("/conversation/clear-history/{session_id}")
 def clear_history(session_id: str):
+    # Verificar que el usuario solo puede limpiar su propio historial
     try:
         clear_redis_history(session_id)
         return {"message": "History cleared successfully"}

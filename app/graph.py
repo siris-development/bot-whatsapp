@@ -1,199 +1,255 @@
-from app.schemas.whatsapp_response import WhatsAppMessage, WhatsAppResponse
-from langgraph.graph import StateGraph, START
-from langgraph.prebuilt import ToolNode
-from app.config import tools, get_llm_with_tools
-from app.redis_client import clear_redis_history, get_redis_history
-
-from app.state import State
-from utils.constants import Constants, system_prompt_agent
-
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables.history import RunnableWithMessageHistory
-from langchain_core.messages import AIMessage
+# graph.py - Solución para el problema de timeout MCP
+import asyncio
+import json
+import os
 import requests
+from contextlib import asynccontextmanager
+from typing import List, Dict, Any
+from langchain_core.tools import tool
+from langgraph.prebuilt import create_react_agent
+from langchain_openai import ChatOpenAI
+from dotenv import load_dotenv
 
-def build_graph() -> StateGraph:
-    graph_builder = StateGraph(State)
+# Cargar variables de entorno
+load_dotenv()
 
-    def call_model(state: State):        
-
-        # Obtener el último mensaje de manera segura
-        if len(state["messages"]) > 0:
-            last_message = state["messages"][-1].content
-        else:
-            # Si no hay mensajes, usar un mensaje por defecto
-            last_message = "Hola, ¿en qué puedo ayudarte?"
-       
-        print(f"Last message: {last_message}")
-        print(f"Total messages in state: {len(state['messages'])}")
-
-        # Debug: Mostrar los primeros mensajes del historial
-        if len(state["messages"]) > 1:
-            print("First few messages in history:")
-            for i, msg in enumerate(state["messages"][:3]):
-                print(f"  {i}: {type(msg).__name__} - {msg.content[:100]}...")
-
-        tools_description = [tool.name for tool in tools]
-
-        # Crear el mensaje de sistema explícito
-        system_message_content = system_prompt_agent(tools_description=tools_description)
+class CustomMCPClient:
+    """Cliente MCP personalizado que evita el problema de timeout"""
+    
+    def __init__(self, base_url: str):
+        self.base_url = base_url
+        self.session_id = 1
+    
+    def _make_request(self, method: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Realiza una petición HTTP al servidor MCP"""
+        payload = {
+            "jsonrpc": "2.0",
+            "id": self.session_id,
+            "method": method,
+            "params": params or {}
+        }
         
-        # Create a prompt template with explicit history handling
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                ("system", system_message_content),
-                MessagesPlaceholder(variable_name="history"),
-                ("human", "{input}"),
-            ]
+        response = requests.post(
+            self.base_url,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+            timeout=10
         )
+        
+        self.session_id += 1
+        
+        if response.status_code in [200, 201]:
+            return response.json()
+        else:
+            raise Exception(f"Error HTTP {response.status_code}: {response.text}")
+    
+    def get_tools_info(self) -> List[Dict[str, Any]]:
+        """Obtiene información de las herramientas disponibles"""
+        result = self._make_request("tools/list")
+        return result.get("result", {}).get("tools", [])
+    
+    def call_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """Llama a una herramienta específica"""
+        result = self._make_request("tools/call", {
+            "name": tool_name,
+            "arguments": arguments
+        })
+        return result.get("result", {})
 
-        # Get LLM with tools dynamically (validates availability)
+# Cliente MCP global
+mcp_client = CustomMCPClient("https://national-clam-ghastly.ngrok-free.app/api/mcp-server?nit=900410267")
+
+# Definir herramientas dinámicamente basadas en el servidor MCP
+@tool
+def get_sedes() -> str:
+    """Obtiene todas las sedes activas disponibles en el sistema"""
+    try:
+        result = mcp_client.call_tool("getSedes", {})
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return f"Error al obtener sedes: {str(e)}"
+
+@tool
+def get_especialidades() -> str:
+    """Obtiene todas las especialidades médicas disponibles en el sistema"""
+    try:
+        result = mcp_client.call_tool("getEspecialidades", {})
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return f"Error al obtener especialidades: {str(e)}"
+
+@tool
+def get_citas_disponibles(id_sede: int, id_especialidad: int, fecha: str) -> str:
+    """
+    Obtiene las citas disponibles para una sede, especialidad y fecha específica
+    
+    Args:
+        id_sede: ID de la sede
+        id_especialidad: ID de la especialidad
+        fecha: Fecha en formato YYYY-MM-DD
+    """
+    try:
+        result = mcp_client.call_tool("getCitasDisponibles", {
+            "idSede": id_sede,
+            "idEspecialidad": id_especialidad,
+            "fecha": fecha
+        })
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return f"Error al obtener citas disponibles: {str(e)}"
+
+@tool
+def guardar_cita(id_usuario: int, id_sede: int, id_profesional: int, 
+                id_especialidad: int, fecha: str, hora: str, id_resolucion: int) -> str:
+    """
+    Guarda una nueva cita médica
+    
+    Args:
+        id_usuario: ID del usuario
+        id_sede: ID de la sede
+        id_profesional: ID del profesional
+        id_especialidad: ID de la especialidad
+        fecha: Fecha en formato YYYY-MM-DD
+        hora: Hora en formato HH:MM
+        id_resolucion: ID de la resolución
+    """
+    try:
+        result = mcp_client.call_tool("guardarCita", {
+            "idUsuario": id_usuario,
+            "idSede": id_sede,
+            "idProfesional": id_profesional,
+            "idEspecialidad": id_especialidad,
+            "fecha": fecha,
+            "hora": hora,
+            "idResolucion": id_resolucion
+        })
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return f"Error al guardar cita: {str(e)}"
+
+@tool
+def consultar_citas(num_doc_usr: str) -> str:
+    """
+    Consulta las citas de un usuario
+    
+    Args:
+        num_doc_usr: Número de documento del usuario
+    """
+    try:
+        result = mcp_client.call_tool("consultarCitas", {
+            "numDocUsr": num_doc_usr
+        })
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return f"Error al consultar citas: {str(e)}"
+
+@tool
+def cancelar_cita(id_cita: int) -> str:
+    """
+    Cancela una cita médica
+    
+    Args:
+        id_cita: ID de la cita a cancelar
+    """
+    try:
+        result = mcp_client.call_tool("cancelarCita", {
+            "idCita": id_cita
+        })
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return f"Error al cancelar cita: {str(e)}"
+
+@tool
+def get_contactos() -> str:
+    """Obtiene los contactos de la IPS"""
+    try:
+        result = mcp_client.call_tool("getContactos", {})
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return f"Error al obtener contactos: {str(e)}"
+
+@tool
+def get_users_by_phone(message_id: str, msg_init: str, display_phone_number: str) -> str:
+    """
+    Obtiene usuarios por número de teléfono
+    
+    Args:
+        message_id: ID del mensaje
+        msg_init: Mensaje inicial
+        display_phone_number: Número de teléfono a mostrar
+    """
+    try:
+        result = mcp_client.call_tool("getUsersByPhone", {
+            "messageId": message_id,
+            "msgInit": msg_init,
+            "displayPhoneNumber": display_phone_number
+        })
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as e:
+        return f"Error al obtener usuarios por teléfono: {str(e)}"
+
+# Lista de todas las herramientas disponibles
+AVAILABLE_TOOLS = [
+    get_sedes,
+    get_especialidades, 
+    get_citas_disponibles,
+    guardar_cita,
+    consultar_citas,
+    cancelar_cita,
+    get_contactos,
+    get_users_by_phone
+]
+
+async def make_graph():
+    """Crea el agente con las herramientas MCP personalizadas"""
+    try:
+        print("Conectando al servidor MCP...")
+        
+        # Verificar conectividad del servidor
+        tools_info = mcp_client.get_tools_info()
+        print(f"Herramientas obtenidas: {len(tools_info)}")
+        
+        for i, tool_info in enumerate(tools_info, 1):
+            print(f"  {i}. {tool_info['name']}: {tool_info['description'][:50]}...")
+        
+        # Crear el agente con las herramientas personalizadas
+        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        agent = create_react_agent(llm, AVAILABLE_TOOLS)
+        
+        print("Agente creado exitosamente")
+        return agent
+        
+    except Exception as e:
+        print(f"Error al crear el agente: {e}")
+        import traceback
+        print(f"Traceback: {traceback.format_exc()}")
+        return None
+
+async def main():
+    """Función principal para probar el agente"""
+    agent = await make_graph()
+    if agent:
+        print("Ejecutando consulta...")
+        
         try:
-            llm_with_tools = get_llm_with_tools()
-        except Exception as e:
-            print(f"ERROR getting LLM: {e}")
-            error_message = AIMessage(content="Lo siento, no puedo acceder a los servicios de IA en este momento. Por favor, intenta de nuevo más tarde.")
-            clear_redis_history(state["sessionId"])
-            return {"messages": [error_message]}
-
-        # Create the conversational chain
-        chain = prompt | llm_with_tools
-
-        # Create a runnable with message history
-        chain_with_history = RunnableWithMessageHistory(
-            chain, 
-            get_redis_history, 
-            input_messages_key="input", 
-            history_messages_key="history"
-        )
-
-        # Invocar el modelo con manejo de errores y reintentos
-        max_retries = 2
-        for attempt in range(max_retries):
-            try:
-                print(f"Attempt {attempt + 1}: Invoking model with session {state['sessionId']}")
-                response = chain_with_history.invoke(
-                    {"input": last_message}, 
-                    config={"configurable": {"session_id": state["sessionId"]}}
-                )
-                print(f"Model response: {response}")
-                print(f"Has tool_calls: {hasattr(response, 'tool_calls') and response.tool_calls}")
-                return {"messages": [response]}
+            response = await agent.ainvoke({
+                "messages": [("user", "Consulta sedes")]
+            })
+            
+            print("\n📋 Respuesta del agente:")
+            if "messages" in response:
+                for msg in response["messages"]:
+                    if hasattr(msg, 'content'):
+                        print(msg.content)
+            else:
+                print(response)
                 
-            except Exception as e:
-                print(f"ERROR invoking model (attempt {attempt + 1}/{max_retries}): {e}")
-                
-                if attempt < max_retries - 1:
-                    print("Retrying with different LLM...")
-                    try:
-                        # Try to get a different LLM
-                        llm_with_tools = get_llm_with_tools()
-                        chain = prompt | llm_with_tools
-                        chain_with_history = RunnableWithMessageHistory(
-                            chain, 
-                            get_redis_history, 
-                            input_messages_key="input", 
-                            history_messages_key="history"
-                        )
-                        continue
-                    except Exception as retry_error:
-                        print(f"ERROR getting alternative LLM: {retry_error}")
-                        continue
-                else:
-                    # All retries failed
-                    error_message = AIMessage(content="Lo siento, tuve un problema técnico. Por favor, intenta de nuevo.")
-                    clear_redis_history(state["sessionId"])
-                    return {"messages": [error_message]}
-
-    def send_to_whatsapp(state: State):
-        """Nodo que envía la respuesta final a WhatsApp"""
-        try:
-            # Obtener el último mensaje de la respuesta del modelo de manera segura
-            try:
-                last_response = state["messages"][-1]
-            except Exception as e:
-                print(f"ERROR accessing last response: {e}")
-                error_message = AIMessage(content="Lo siento, tuve un problema técnico. Por favor, intenta de nuevo.")
-                return {"messages": [error_message]}
-            
-            # Verificar que sea una respuesta válida
-            if not hasattr(last_response, 'content') or not last_response.content:
-                print("ERROR: No valid response content to send to WhatsApp")
-                error_message = AIMessage(content="Lo siento, no pude procesar tu solicitud. Por favor, intenta de nuevo.")
-                return {"messages": [error_message]}
-            
-            print(f"Sending to WhatsApp: {last_response.content}")
-            
-            post_data = WhatsAppResponse(
-                sessionId=state["sessionId"],
-                phoneNumberId=state["phoneNumberId"],
-                to=state["to"],
-                messages=[WhatsAppMessage(type="text", content=str(last_response.content))]
-            )
-            
-            post_data_dict = post_data.model_dump()
-            
-            headers = {"Content-Type": "application/json"}
-            resp = requests.post(url=f"{Constants.base_url}/whatsapp/send-message", headers=headers, json=post_data_dict)
-            resp.raise_for_status()
-            data = resp.json()
-
-            print(f"WhatsApp API response: {data}")
-            return {"messages": [last_response]}
-
-        except requests.exceptions.ConnectionError as e:
-            print(f"Error de conexión con WhatsApp API: {e}")
-            error_message = AIMessage(content="Lo siento, estoy teniendo problemas de conexión. Por favor, intenta de nuevo en unos momentos.")
-            return {"messages": [error_message]}
-            
-        except requests.exceptions.Timeout as e:
-            print(f"Timeout en WhatsApp API: {e}")
-            error_message = AIMessage(content="La solicitud está tomando más tiempo del esperado. Por favor, intenta de nuevo.")
-            return {"messages": [error_message]}
-            
-        except requests.exceptions.HTTPError as e:
-            print(f"Error HTTP en WhatsApp API: {e}")
-            error_message = AIMessage(content="Hubo un problema técnico. Por favor, intenta de nuevo más tarde.")
-            return {"messages": [error_message]}
-            
-        except requests.RequestException as e:
-            print(f"Error general en WhatsApp API: {e}")
-            error_message = AIMessage(content="Hubo un problema al enviar tu mensaje. Por favor, intenta de nuevo.")
-            return {"messages": [error_message]}
-            
         except Exception as e:
-            print(f"Error inesperado: {e}")
-            error_message = AIMessage(content="Ocurrió un error inesperado. Por favor, intenta de nuevo.")
-            return {"messages": [error_message]}
+            print(f"Error al ejecutar consulta: {e}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
+    else:
+        print("No se pudo crear el agente")
 
-    # Agregar nodos al graph
-    graph_builder.add_node("call_model", call_model)
-    graph_builder.add_node("tools", ToolNode(tools))
-    graph_builder.add_node("send_to_whatsapp", send_to_whatsapp)
-    
-    # Agregar edges condicionales personalizados
-    def should_continue(state: State) -> str:
-        """Función condicional que decide si ir a herramientas o enviar a WhatsApp"""
-        try:
-            last_response = state["messages"][-1]
-            
-            # Si hay tool_calls, ir a herramientas
-            if hasattr(last_response, 'tool_calls') and last_response.tool_calls:
-                print("INFO: Going to tools node")
-                return "tools"
-            
-            # Si no hay tool_calls, enviar a WhatsApp
-            print("INFO: Going to WhatsApp node")
-            return "send_to_whatsapp"
-        except Exception as e:
-            print(f"ERROR in should_continue: {e}")
-            return "send_to_whatsapp"
-    
-    graph_builder.add_conditional_edges("call_model", should_continue)
-    
-    graph_builder.add_edge("tools", "call_model")  # Después de herramientas, volver al modelo
-    graph_builder.add_edge(START, "call_model")    # Empezar con el modelo
-
-    return graph_builder.compile()
-
-graph = build_graph()
+if __name__ == "__main__":
+    asyncio.run(main())

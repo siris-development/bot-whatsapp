@@ -15,3 +15,6 @@ openpyxl
 redis
 langchain-redis
 requests
+openai
+mcp
+langchain-mcp-adapters

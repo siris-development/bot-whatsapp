@@ -4,24 +4,10 @@ import requests
 import os
 from dotenv import load_dotenv
 
-from app.services.get_especialidades import get_especialidades
-from app.services.get_sedes import get_sedes
-from app.services.get_citas_disponibles import get_citas_disponibles
-from app.services.guardar_cita import guardar_cita
-from app.services.despedida import despedida
-
 load_dotenv()
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-tools = [
-    get_especialidades,
-    get_sedes,
-    get_citas_disponibles,
-    guardar_cita,
-    despedida
-]
 
 def is_ollama_running():
     """Check if Ollama is running and accessible"""
@@ -67,14 +53,3 @@ def get_available_llm():
     # If neither works, raise an error
     raise Exception("No LLM available. Please check your configuration.")
 
-def get_llm_with_tools():
-    """Get LLM with tools bound, with real-time availability check"""
-    llm = get_available_llm()
-    return llm.bind_tools(tools)
-
-# Initialize with fallback capability
-try:
-    llm_with_tools = get_llm_with_tools()
-except Exception as e:
-    print(f"Initial LLM setup failed: {e}")
-    llm_with_tools = None

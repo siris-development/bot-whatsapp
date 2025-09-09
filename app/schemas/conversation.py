@@ -3,7 +3,6 @@ from typing import List
 from app.schemas.user import User
 
 class ConversationInit(BaseModel):
-    isValid: bool
     nit: str
     to: str
     users: List[User]

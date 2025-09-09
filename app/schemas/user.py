@@ -1,10 +1,8 @@
 from pydantic import BaseModel
 
-class StatusValid(BaseModel):
-    isActive: bool
-    message: str
-
 class User(BaseModel):
     idUsuario: int
+    numDocUsr: str
     nombreCompleto: str
-    statusValid: StatusValid
+    msgStatus: str
+    puedeAgendar: str
