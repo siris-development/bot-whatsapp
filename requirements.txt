@@ -4,6 +4,7 @@ langchain
 langchain-community
 langchain-ollama
 langchain-openai>=0.3.29
+langchain-anthropic
 langgraph-cli
 langgraph-cli[inmem]
 langgraph-sdk
@@ -15,6 +16,7 @@ openpyxl
 redis
 langchain-redis
 requests
+aiohttp
 openai
 mcp
 langchain-mcp-adapters

@@ -6,8 +6,7 @@ from app.schemas.guardar_cita import GuardarCita
 from app.schemas.sede import Sede
 
 class Constants:
-    base_url = "https://national-clam-ghastly.ngrok-free.app/api"
-    mcp_url = "https://z234zcg5-3005.use2.devtunnels.ms/mcp-server"
+    base_url = "https://gateway.siriscloud.com.co/api"
     
 def system_prompt_agent():
     prompt = f"""You are a professional medical appointment scheduling assistant. Your role is to help patients book their appointments in a clear, efficient, and friendly manner.

@@ -9,8 +9,10 @@ class ConversationInit(BaseModel):
     msgInit: str
     phoneNumberId: str
     idResolucion: int
+    modelProvider: str
 
 class ConversationContinue(BaseModel):
     to: str
     phoneNumberId: str
     message: str
+    modelProvider: str

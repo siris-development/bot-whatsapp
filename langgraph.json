@@ -1,7 +1,8 @@
 {
     "dependencies": ["."],
     "graphs": {
-        "agent_cronhis": "./app/graph.py:make_graph"
+        "agent_mcp": "./app/mcp_graph.py:make_graph",
+        "graph": "./app/graph.py:build_graph"
     },
     "python_version": "3.13",
     "env": ".env"
