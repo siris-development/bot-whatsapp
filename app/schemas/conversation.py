@@ -12,6 +12,7 @@ class ConversationInit(BaseModel):
     modelProvider: str
 
 class ConversationContinue(BaseModel):
+    user: User
     to: str
     phoneNumberId: str
     message: str

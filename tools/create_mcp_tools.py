@@ -4,7 +4,7 @@ from langchain_core.tools import tool
 from app.custom_mcp_client import CustomMCPClient
 from utils.constants import Constants
 
-mcp_client = CustomMCPClient(f"{Constants.base_url_dev}/{Constants.mcp_base_url}")
+mcp_client = CustomMCPClient(f"{Constants.base_url}/{Constants.mcp_base_url}")
 
 async def create_mcp_tools():
     """Create LangGraph tools from MCP server tools"""
