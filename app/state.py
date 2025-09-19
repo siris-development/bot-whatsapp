@@ -11,8 +11,8 @@ ModelProvider = Literal["ollama", "openai", "anthropic"]
 class State(TypedDict):
     # Session information
     sessionId: str
-    # phoneNumberId: str
-    # to: str
+    phoneNumberId: str
+    to: str
     messages: Annotated[list[AnyMessage], add_messages]
     
     # Model configuration
@@ -33,7 +33,9 @@ class State(TypedDict):
         """Create a state dictionary from parameters"""
         return {
             "sessionId": params.get("sessionId"),
-            "messages": params.get("messages"),
+            "phoneNumberId": params.get("phoneNumberId"),
+            "to": params.get("to"),
+            "messages": params.get("messages", "msgInit"),
             "modelProvider": params.get("modelProvider"),
             "users": params.get("users"),
             "selectedUser": params.get("selectedUser"),
@@ -42,64 +44,3 @@ class State(TypedDict):
             "idResolucion": params.get("idResolucion"),
             "decision": params.get("decision")
         }
-
-""" 
-{
-    "sessionId": "123",
-    "messages": ["Hola"],
-    "modelProvider": "openai",
-    "users": [
-        {
-            "idUsuario": 25,
-            "numDocUsr": "25000000",
-            "nombreCompleto": "JOJOA JOJOA AVELINO AVELINO",
-            "msgStatus": "Hola, JOJOA JOJOA AVELINO AVELINO, Lo sentimos, usted no es base propia de la IPS. Por favor, contacte al servicio de atención al cliente.",
-            "puedeAgendar": "NO"
-        },
-        {
-            "idUsuario": 29,
-            "numDocUsr": "29000000",
-            "nombreCompleto": "TAIMBUD TAIMBUD ABELINA ABELINA",
-            "msgStatus": "Hola, TAIMBUD TAIMBUD ABELINA ABELINA, Bienvenido a la plataforma de agendamiento de citas. Por favor, seleccione una opción para continuar.",
-            "puedeAgendar": "SI"
-        }
-    ],
-    "nit": "1234567890",
-    "idResolucion": 2
-} 
-"""
-
-""" 
-{
-    "sessionId": "123",
-    "messages": ["Quiero agendar una cita"],
-    "modelProvider": "openai",
-    "users": [
-        {
-            "idUsuario": 25,
-            "numDocUsr": "25000000",
-            "nombreCompleto": "JOJOA JOJOA AVELINO AVELINO",
-            "msgStatus": "Hola, JOJOA JOJOA AVELINO AVELINO, Lo sentimos, usted no es base propia de la IPS. Por favor, contacte al servicio de atención al cliente.",
-            "puedeAgendar": "NO"
-        },
-        {
-            "idUsuario": 29,
-            "numDocUsr": "29000000",
-            "nombreCompleto": "TAIMBUD TAIMBUD ABELINA ABELINA",
-            "msgStatus": "Hola, TAIMBUD TAIMBUD ABELINA ABELINA, Bienvenido a la plataforma de agendamiento de citas. Por favor, seleccione una opción para continuar.",
-            "puedeAgendar": "NO"
-        }
-    ],
-    "selectedUser": {
-        "idUsuario": 29,
-        "numDocUsr": "29000000",
-        "nombreCompleto": "TAIMBUD TAIMBUD ABELINA ABELINA",
-        "msgStatus": "Hola, TAIMBUD TAIMBUD ABELINA ABELINA, Bienvenido a la plataforma de agendamiento de citas. Por favor, seleccione una opción para continuar.",
-        "puedeAgendar": "SI"
-    },
-    "userSelection": "TAIMBUD",
-    "nit": "1234567890",
-    "idResolucion": 2,
-    "decision": "approved"
-} 
-"""

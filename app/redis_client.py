@@ -33,7 +33,6 @@ def clear_redis_history(session_id: str) -> bool:
         return True
         
     except Exception as e:
-        print(f"ERROR clearing session completely: {e}")
         return False
 
 

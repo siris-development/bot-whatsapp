@@ -9,8 +9,7 @@ from app.state import State
 from app.schemas.user import User
 from utils.constants import system_prompt_agent, system_prompt_llm_user_selection
 from typing import Literal
-from app.redis_client import get_redis_history, clear_redis_history
-from langchain_core.runnables import RunnableWithMessageHistory
+from langgraph.prebuilt import ToolNode
 
 from tools.get_sedes import get_sedes
 from tools.get_citas_disponibles import get_citas_disponibles
@@ -25,6 +24,8 @@ tools = [
     guardar_cita,
     despedida
 ]
+
+tool_node = ToolNode(tools)
 
 # LLM-powered user selection node
 def llm_user_selection(state: State) -> Command[Literal["user_approved", "user_rejected"]]:
@@ -67,14 +68,12 @@ def llm_user_selection(state: State) -> Command[Literal["user_approved", "user_r
         model = provider.get_langchain_model()
         llm_response = model.invoke(selection_prompt)
         response_content = llm_response.content if hasattr(llm_response, 'content') else str(llm_response)
-        print(f"LLM Response: {response_content}")
         
         # Process LLM response
         if response_content.strip().isdigit():
             selected_index = int(response_content.strip()) - 1
             if 0 <= selected_index < len(users):
                 selected_user = users[selected_index]
-                print(f"✅ Usuario seleccionado por LLM: {selected_user.nombreCompleto}")
                 
                 if selected_user.puedeAgendar == "SI":
                     return Command(goto="user_approved", update={
@@ -99,7 +98,6 @@ def llm_user_selection(state: State) -> Command[Literal["user_approved", "user_r
         })
         
     except Exception as e:
-        print(f"Error en procesamiento LLM: {e}")
         return Command(goto="user_rejected", update={
             "decision": "rejected",
             "userSelection": user_selection,
@@ -116,7 +114,6 @@ def approved_node(state: State) -> State:
             "messages": [AIMessage(content=user.msgStatus)]
         }
     else:
-        print("✅ Approved path taken (no specific user)")
         return state
 
 # Alternative path after rejection
@@ -129,17 +126,14 @@ def rejected_node(state: State) -> State:
             "messages": [AIMessage(content=user.msgStatus)]
         }
     else:
-        print("❌ Rejected path taken (no specific user)")
         return state
 
 def determine_entry_point(state: State) -> str:
     """Determine the entry point based on whether user is already selected"""
     selected_user = state.get("selectedUser")
     if selected_user:
-        print(f"✅ User already selected: {selected_user.get('nombreCompleto', 'Unknown')}")
         return "agent_node"
     else:
-        print("🔄 No user selected, starting with user selection")
         return "llm_user_selection"
 
 def invoke_graph(graph_params: dict):
@@ -147,22 +141,24 @@ def invoke_graph(graph_params: dict):
     try:
         # Create initial state from parameters
         state = State.create_from_params(graph_params)
+
+        session_id = state["to"] + "_" + state["phoneNumberId"]
         
         # Run the graph with checkpoint memory
-        thread = {"configurable": {"thread_id": state["sessionId"]}}
+        thread = {"configurable": {"thread_id": session_id}}
         
         result = graph.invoke(state, config=thread)
         
         return {"messages": [result["messages"][-1]]}
             
     except Exception as e:
-        print(f"Error invoking graph: {e}")
         error_message = AIMessage(content="Lo siento, tuve un problema técnico. Por favor, intenta de nuevo.")
         return {"messages": [error_message]}
 
 def agent_node(state: State):
     """Agent node that processes messages and maintains state"""
-    print(f"Agent processing state: {state}")
+
+    session_id = state["to"] + "_" + state["phoneNumberId"]
     
     # Get the appropriate provider
     model_provider = state.get("modelProvider")
@@ -183,14 +179,25 @@ def agent_node(state: State):
     llm = provider.get_langchain_model()
     
     # Create system prompt with state context and user data
-    system_message_content = system_prompt_agent()
+    nit = state.get("nit")
+    selected_user = state.get("selectedUser")
+    idUsuario = selected_user.get("idUsuario") if selected_user and isinstance(selected_user, dict) else None
+    system_message_content = system_prompt_agent(nit=nit, idUsuario=idUsuario)
     
-    # Create a prompt template with explicit history handling
+    # Check if the last message has tool calls - if so, we need to handle it differently
+    last_message = messages[-1]
+    has_tool_calls = hasattr(last_message, 'tool_calls') and last_message.tool_calls
+    
+    if has_tool_calls:
+        # If the last message has tool calls, we should not invoke the model again
+        # The tool calls should be handled by the tools node
+        return {"messages": [last_message]}
+    
+    # Create a prompt template that works with LangGraph's message handling
     prompt = ChatPromptTemplate.from_messages(
         [
             ("system", system_message_content),
-            MessagesPlaceholder(variable_name="history"),
-            ("human", "{input}"),
+            MessagesPlaceholder(variable_name="messages"),
         ]
     )
 
@@ -200,38 +207,16 @@ def agent_node(state: State):
     # Create the conversational chain
     chain = prompt | llm_with_tools
     
-    print(f"✅ Processing with tools ({len(tools)} tools available)")
     
-    # Create a runnable with message history
-    chain_with_history = RunnableWithMessageHistory(
-        chain, 
-        get_redis_history, 
-        input_messages_key="input", 
-        history_messages_key="history"
-    )
     try:
-        # Obtener el último mensaje de manera segura
-        if len(state["messages"]) > 0:
-            last_message = state["messages"][-1].content
-        else:
-            # Si no hay mensajes, usar un mensaje por defecto
-            last_message = "Hola, ¿en qué puedo ayudarte?"
-       
-        print(f"Last message: {last_message}")
-
-        response = chain_with_history.invoke(
-            {"input": last_message}, 
-            config={"configurable": {"session_id": state["sessionId"]}}
-        )
-
-        print(f"Model response: {response}")
-        print(f"Has tool_calls: {hasattr(response, 'tool_calls') and response.tool_calls}")
+        # Use LangGraph's built-in message handling instead of RunnableWithMessageHistory
+        # This ensures proper tool call/response flow
+        response = chain.invoke({"messages": messages})
+        
         return {"messages": [response]}
         
     except Exception as e:
-        print(f"ERROR invoking model: {e}")
         error_message = AIMessage(content="Lo siento, tuve un problema técnico. Por favor, intenta de nuevo.")
-        clear_redis_history(state["sessionId"])
         return {"messages": [error_message]}
 
 # Build the graph
@@ -240,6 +225,7 @@ builder.add_node("llm_user_selection", llm_user_selection)
 builder.add_node("user_approved", approved_node)
 builder.add_node("user_rejected", rejected_node)
 builder.add_node("agent_node", agent_node)
+builder.add_node("tools", tool_node)
 
 # Use conditional entry point
 builder.add_conditional_edges(
@@ -251,8 +237,17 @@ builder.add_conditional_edges(
     }
 )
 
+def should_continue(state: State):
+    messages = state["messages"]
+    last_message = messages[-1]
+    if last_message.tool_calls:
+        return "tools"
+    return END
+
 builder.add_edge("user_approved", "agent_node")
-builder.add_edge("agent_node", END)  # End after processing one message
 builder.add_edge("user_rejected", "llm_user_selection")
+
+builder.add_conditional_edges("agent_node", should_continue, ["tools", END])
+builder.add_edge("tools", "agent_node")
 
 graph = builder.compile()

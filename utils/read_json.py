@@ -7,5 +7,4 @@ def read_object(tool_path: str, key: str):
             obj = data.get(key, [])
             return obj
     except Exception as e:
-        print(f"Error al leer el archivo JSON: {e}")
         return []

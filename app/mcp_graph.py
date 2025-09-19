@@ -55,14 +55,12 @@ def llm_user_selection(state: State) -> Command[Literal["user_approved", "user_r
         model = provider.get_langchain_model()
         llm_response = model.invoke(selection_prompt)
         response_content = llm_response.content if hasattr(llm_response, 'content') else str(llm_response)
-        print(f"LLM Response: {response_content}")
         
         # Process LLM response
         if response_content.strip().isdigit():
             selected_index = int(response_content.strip()) - 1
             if 0 <= selected_index < len(users):
                 selected_user = users[selected_index]
-                print(f"✅ Usuario seleccionado por LLM: {selected_user.nombreCompleto}")
                 
                 if selected_user.puedeAgendar == "SI":
                     return Command(goto="user_approved", update={
@@ -87,7 +85,6 @@ def llm_user_selection(state: State) -> Command[Literal["user_approved", "user_r
         })
         
     except Exception as e:
-        print(f"Error en procesamiento LLM: {e}")
         return Command(goto="user_rejected", update={
             "decision": "rejected",
             "userSelection": user_selection,
@@ -100,17 +97,11 @@ def approved_node(state: State) -> State:
     selected_user = state.get("selectedUser")
     if selected_user:
         user = User(**selected_user)
-        print(f"✅ Usuario aprobado: {user.nombreCompleto}")
-        print(f"ID: {user.idUsuario}")
-        print(f"Documento: {user.numDocUsr}")
-        print(f"Estado: {user.msgStatus}")
-        print("Puede proceder con el agendamiento de citas")
         
         return {
             "messages": [AIMessage(content=f"Usuario {user.nombreCompleto} aprobado. Puede proceder con el agendamiento.")]
         }
     else:
-        print("✅ Approved path taken (no specific user)")
         return state
 
 # Alternative path after rejection
@@ -119,27 +110,19 @@ def rejected_node(state: State) -> State:
     selected_user = state.get("selectedUser")
     if selected_user:
         user = User(**selected_user)
-        print(f"❌ Usuario rechazado: {user.nombreCompleto}")
-        print(f"ID: {user.idUsuario}")
-        print(f"Documento: {user.numDocUsr}")
-        print(f"Estado: {user.msgStatus}")
-        print("No puede agendar citas")
         
         return {
             "messages": [AIMessage(content=f"Usuario {user.nombreCompleto} rechazado. No puede agendar citas.")]
         }
     else:
-        print("❌ Rejected path taken (no specific user)")
         return state
 
 def determine_entry_point(state: State) -> str:
     """Determine the entry point based on whether user is already selected"""
     selected_user = state.get("selectedUser")
     if selected_user:
-        print(f"✅ User already selected: {selected_user.get('nombreCompleto', 'Unknown')}")
         return "agent_node"
     else:
-        print("🔄 No user selected, starting with user selection")
         return "llm_user_selection"
 
 def invoke_graph(graph_params: dict):
@@ -156,13 +139,11 @@ def invoke_graph(graph_params: dict):
         return {"messages": [result["messages"][-1]]}
             
     except Exception as e:
-        print(f"Error invoking graph: {e}")
         error_message = AIMessage(content="Lo siento, tuve un problema técnico. Por favor, intenta de nuevo.")
         return {"messages": [error_message]}
 
 def agent_node(state: State):
     """Agent node that processes messages and maintains state"""
-    print(f"Agent processing state: {state}")
     
     # Get the appropriate provider
     model_provider = state.get("modelProvider")
@@ -184,14 +165,14 @@ def agent_node(state: State):
     mcp_tools = create_mcp_tools()
     
     if not mcp_tools:
-        print("❌ No MCP tools available")
         error_message = AIMessage(content="Lo siento, no puedo acceder a las herramientas en este momento.")
         return {"messages": [error_message]}
     # Get the LangChain model
     llm = provider.get_langchain_model()
     
     # Create system prompt with state context and user data
-    system_message_content = system_prompt_agent()
+    nit = state.get("nit")
+    system_message_content = system_prompt_agent(nit=nit)
     
     # Create a prompt template with explicit history handling
     prompt = ChatPromptTemplate.from_messages(
@@ -208,7 +189,6 @@ def agent_node(state: State):
     # Create the conversational chain
     chain = prompt | llm_with_tools
     
-    print(f"✅ Processing with MCP tools ({len(mcp_tools)} tools available)")
     
     # Create a runnable with message history
     chain_with_history = RunnableWithMessageHistory(
@@ -226,21 +206,17 @@ def agent_node(state: State):
             # Si no hay mensajes, usar un mensaje por defecto
             last_message = "Hola, ¿en qué puedo ayudarte?"
        
-        print(f"Last message: {last_message}")
 
         response = chain_with_history.invoke(
             {"input": last_message}, 
             config={"configurable": {"session_id": state["sessionId"]}}
         )
 
-        print(f"Model response: {response}")
-        print(f"Has tool_calls: {hasattr(response, 'tool_calls') and response.tool_calls}")
         return {"messages": [response]}
         
     except Exception as e:
-        print(f"ERROR invoking model: {e}")
         error_message = AIMessage(content="Lo siento, tuve un problema técnico. Por favor, intenta de nuevo.")
-        clear_redis_history(state["sessionId"])
+        # Don't clear Redis history on error - keep it for debugging and continuity
         return {"messages": [error_message]}
 
 # Build the graph
@@ -299,21 +275,16 @@ initial_state = {
 }
 
 # Test the graph using streaming pattern
-print("Testing LLM-powered user selection with streaming...")
 
 # Test 1: Stream until interrupt
-print("\n--- Step 1: Streaming until interrupt ---")
 for chunk in graph.stream(initial_state, config):
-    print(chunk)
-    print("\n")
+    pass
 
 user_selection = "TAIMBUD"
 
 # Test 2: Resume with user selection using Command
-print("\n--- Step 2: Resuming with user selection 'TAIMBUD' ---")
 for chunk in graph.stream(
     Command(resume={"user_selection": user_selection}),
     config
 ):
-    print(chunk)
-    print("\n")
+    pass

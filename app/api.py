@@ -92,14 +92,12 @@ def clear_history(session_id: str):
 
 def process_ai_response(response: dict) -> tuple[str, dict]:
     """Extract AI response content and usage metadata."""
-    print(f"Response from graph: {response}")
     messages = response.get("messages", [])
     if not messages:
         return "No response generated", None
     
     # Get the last message (should be AI response)
     ai_response = messages[-1]
-    print(f"AI Response: {ai_response}")
     
     # Check if it's actually an AI message
     if hasattr(ai_response, 'type') and ai_response.type == 'human':

@@ -18,12 +18,9 @@ def despedida(session_id: str) -> str:
         success = clear_redis_history(session_id)
         
         if success:
-            print(f"INFO: Redis cache completely cleared for session {session_id}")
         else:
-            print(f"WARNING: Partial Redis cache clear for session {session_id}")
         
         return "¡Ha sido un placer ayudarte! Tu historial de conversación ha sido limpiado. ¡Que tengas un excelente día!"
         
     except Exception as e:
-        print(f"ERROR clearing Redis cache for session {session_id}: {e}")
         return "¡Ha sido un placer ayudarte! ¡Que tengas un excelente día!"

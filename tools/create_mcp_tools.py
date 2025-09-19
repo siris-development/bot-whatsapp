@@ -11,7 +11,6 @@ async def create_mcp_tools():
     try:
         # Get tools from MCP server
         tools_info = await mcp_client.get_tools_info()
-        print(f"Creating {len(tools_info)} LangGraph tools from MCP server")
         
         langgraph_tools = []
         
@@ -42,10 +41,8 @@ async def create_mcp_tools():
             
             langgraph_tool = create_tool_wrapper(tool_name, tool_description, tool_schema)
             langgraph_tools.append(langgraph_tool)
-            print(f"✅ Created tool: {tool_name}")
         
         return langgraph_tools
         
     except Exception as e:
-        print(f"Error creating MCP tools: {e}")
         return []
