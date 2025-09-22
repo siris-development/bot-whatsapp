@@ -1,6 +1,6 @@
 # 📱 WhatsApp Appointment Bot
 
-This project is a WhatsApp bot designed to automate the appointment scheduling process. It uses a graph-based architecture to manage conversation flows, integrates with multiple AI model providers, and connects to an external server (MCP) for business logic.
+This project is a WhatsApp bot designed to automate the appointment scheduling process. It uses a graph-based architecture with LangGraph to manage conversation flows, integrates with multiple AI model providers, and connects to the Cronhis Citas MCP Server for appointment management functionality. The bot features Redis-based chat history and supports multi-turn conversations.
 
 ## 📋 Table of Contents
 
@@ -94,7 +94,7 @@ The bot will be available at `http://localhost:80`.
 Once you have completed the installation steps, you can run the application with `uvicorn`. This command will start a local server that automatically reloads on code changes.
 
 ```bash
-uvicorn app.api:app --reload --port 8000
+uvicorn app.server:app --reload --port 8000
 ```
 
 The API will be available at `http://localhost:8000`.
@@ -244,27 +244,25 @@ result = invoke_graph(test_state)
 print("Graph result:", result)
 ```
 
-**Test individual tools:**
-You can also test the tools that connect to the MCP server directly.
+**Test MCP tools integration:**
+You can test the MCP tools that are integrated into the LangGraph workflow.
 
 ```python
-# Import tool functions
-from tools.get_sedes import get_sedes
-from tools.get_especialidades import get_especialidades
-from tools.get_citas_disponibles import get_citas_disponibles
+# Import MCP client functions
+from app.mcp_client import CronhisMCPClient, create_cronhis_tools
 
-# Test get_sedes
-sedes = get_sedes.invoke({"nit": 900410267})
-print("Sedes:", sedes)
+# Test MCP client directly
+client = CronhisMCPClient("900410267")
+tools = await client.list_tools()
+print("Available tools:", tools)
 
-# Test get_citas_disponibles
-citas = get_citas_disponibles.invoke({
-    "nit": 900410267,
-    "idSede": 1,
-    "idEspecialidad": 2,
-    "fecha": "2025-09-19"
-})
-print("Citas disponibles:", citas)
+# Test individual tool calls
+result = await client.call_tool("getSedes", {})
+print("Sedes:", result)
+
+# Test LangChain tool integration
+langchain_tools = create_cronhis_tools("900410267")
+print("LangChain tools:", langchain_tools)
 ```
 **Test with different model providers:**
 Simply change the `modelProvider` key in the state object.
@@ -314,28 +312,186 @@ If you encounter issues, check the following:
 
 -----
 
-## 🔌 API Endpoint
+## 🔌 MCP Integration
 
-You can test the full flow by sending a POST request to the `/webhook` endpoint.
+This project integrates with the Cronhis Citas MCP Server for appointment management functionality. The MCP (Model Context Protocol) integration provides access to medical appointment scheduling tools.
+
+### MCP Server Configuration
+
+The MCP server is configured with the following endpoints:
+
+- **Production**: `https://gateway.siriscloud.com.co/api/mcp-server`
+- **Local Development**: `http://localhost:3000/api/mcp-server`
+
+### Available MCP Tools
+
+The following tools are available through the MCP integration:
+
+| Tool | Description | Parameters |
+|------|-------------|------------|
+| `getSedes` | Get all active locations | None |
+| `getEspecialidades` | Get medical specialties | None |
+| `getCitasDisponibles` | Search available appointments | `idSede`, `idEspecialidad`, `fecha` |
+| `guardarCita` | Save a new appointment | `idUsuario`, `idSede`, `idProfesional`, `idEspecialidad`, `fecha`, `hora`, `idResolucion` |
+| `consultarCitas` | Query user appointments | `numDocUsr` |
+| `cancelarCita` | Cancel an appointment | `idCita` |
+| `confirmarCita` | Confirm an appointment | `idCita` |
+| `consultarCitasConfirmar` | Query appointments pending confirmation | `numDocUsr` |
+| `consultarCitasCancelar` | Query cancellable appointments | `numDocUsr` |
+| `getContactos` | Get IPS contacts | None |
+
+### Testing MCP Integration
+
+The MCP integration is automatically tested when you run the main application. You can also test it programmatically:
+
+```python
+# Test MCP client functionality
+from app.mcp_client import CronhisMCPClient
+
+async def test_mcp():
+    client = CronhisMCPClient("900410267")
+    
+    # Test connection
+    tools = await client.list_tools()
+    print(f"Found {len(tools)} tools")
+    
+    # Test a tool call
+    result = await client.call_tool("getSedes", {})
+    print("Sedes result:", result)
+
+# Run the test
+import asyncio
+asyncio.run(test_mcp())
+```
+
+### MCP Client Usage
+
+The MCP client is automatically integrated into the LangGraph workflow. When a user interacts with the bot, the system:
+
+1. **Initializes MCP Client**: Creates a connection to the Cronhis Citas MCP Server
+2. **Loads Available Tools**: Retrieves all 10 available appointment management tools
+3. **Integrates with LangGraph**: Makes tools available to the AI agent through LangChain's StructuredTool format
+4. **Executes Tool Calls**: The AI agent can call tools like `getSedes`, `getCitasDisponibles`, `guardarCita`, etc.
+5. **Maintains Context**: Tools are dynamically loaded based on the NIT parameter for each conversation
+6. **Returns Formatted Responses**: Tool results are processed and returned to the user in a conversational format
+
+### Error Handling
+
+The MCP integration includes comprehensive error handling:
+
+- **Connection Timeouts**: 30-second timeout for MCP server requests
+- **Server Error Responses**: Graceful handling of HTTP errors and server responses
+- **Invalid Tool Parameters**: Validation of tool parameters before execution
+- **Network Connectivity Issues**: Automatic retry logic and fallback responses
+- **Tool Execution Errors**: Safe error handling with user-friendly error messages
+
+All errors are gracefully handled with fallback responses to ensure the bot remains functional even when the MCP server is unavailable.
+
+### Redis Chat History
+
+The bot features Redis-based chat history that enables multi-turn conversations:
+
+- **Persistent Memory**: Chat history is stored in Redis with TTL configuration
+- **User Sessions**: Each user (identified by `to` + `phoneNumberId`) has their own chat history
+- **Context Integration**: Previous messages are automatically included in the conversation context
+- **Memory Management**: Chat history is properly managed and integrated with the LangGraph workflow
+
+## 🔌 API Endpoints
+
+### LangServe Integration
+
+The server now includes LangServe integration for better API management and documentation. You can access the interactive API documentation at `/docs` when the server is running.
+
+#### WhatsApp Bot Endpoint
+
+You can test the WhatsApp bot by sending a POST request to the `/whatsapp-bot/invoke` endpoint:
 
 ```bash
-curl -X POST "https://gateway.siriscloud.com.co/api/mcp-server?nit=900410267" \
+curl -X POST "http://localhost:8000/whatsapp-bot/invoke" \
   -H "Content-Type: application/json" \
   -d '{
+    "input": "Hola",
     "nit": "900410267",
     "to": "3106400794",
-    "users": [
-        {
-            "idUsuario": 29,
-            "numDocUsr": "29000000",
-            "nombreCompleto": "TAIMBUD TAIMBUD ABELINA ABELINA",
-            "msgStatus": "Hola, TAIMBUD TAIMBUD ABELINA ABELINA, Bienvenido a la plataforma de agendamiento de citas.",
-            "puedeAgendar": "SI"
-        }
-    ],
-    "msgInit": "Buenos días",
     "phoneNumberId": "672067049329170",
     "idResolucion": 2,
-    "modelProvider": "openai"
+    "modelProvider": "openai",
+    "users": [
+      {
+        "idUsuario": 29,
+        "numDocUsr": "29000000",
+        "nombreCompleto": "TAIMBUD TAIMBUD ABELINA ABELINA",
+        "msgStatus": "Hola, TAIMBUD TAIMBUD ABELINA ABELINA, Bienvenido a la plataforma de agendamiento de citas.",
+        "puedeAgendar": "SI"
+      }
+    ],
+    "userSelection": "TAIMBUD TAIMBUD ABELINA ABELINA",
+    "selectedUser": {
+      "idUsuario": 29,
+      "numDocUsr": "29000000",
+      "nombreCompleto": "TAIMBUD TAIMBUD ABELINA ABELINA",
+      "msgStatus": "Hola, TAIMBUD TAIMBUD ABELINA ABELINA, Bienvenido a la plataforma de agendamiento de citas.",
+      "puedeAgendar": "SI"
+    }
   }'
+```
+
+**Response Format:**
+The endpoint returns a structured WhatsApp response:
+
+```json
+{
+  "to": "3106400794",
+  "phoneNumberId": "672067049329170",
+  "input": "Hola",
+  "response": "¡Hola! Bienvenido. Estoy aquí para ayudarte a agendar tu cita médica..."
+}
+```
+
+### Server Architecture
+
+The server follows a clean, modular architecture with the following structure:
+
+- **Main Server**: `app/server.py` - FastAPI server with custom WhatsApp bot endpoint
+- **Graph Logic**: `app/graph.py` - Core WhatsApp bot graph implementation with LangGraph
+- **MCP Client**: `app/mcp_client.py` - Cronhis Citas MCP Server integration
+- **Redis Utils**: `app/redis_utils.py` - Redis chat history management
+- **Schemas**: `app/schemas/` - Pydantic models for data validation
+- **State Management**: `app/state.py` - LangGraph state definitions
+
+### Key Features
+
+- **🧠 Multi-turn Conversations**: Redis-based chat history enables natural conversation flow
+- **🔌 MCP Integration**: Full integration with Cronhis Citas MCP Server for appointment management
+- **🤖 AI Model Support**: Compatible with OpenAI, Anthropic, and Ollama providers
+- **📊 LangGraph Architecture**: Stateful conversation management with checkpoint memory
+- **🛡️ Error Handling**: Comprehensive error handling with graceful fallbacks
+- **📱 WhatsApp Integration**: Structured responses optimized for WhatsApp messaging
+- **⚡ Async Processing**: Fully asynchronous implementation for better performance
+
+### Available Endpoints
+
+- `GET /` - Root endpoint with server information
+- `GET /healthz` - Health check endpoint
+- `GET /docs` - Interactive API documentation (Swagger UI)
+- `POST /whatsapp-bot/invoke` - WhatsApp bot processing endpoint
+
+### Multi-turn Conversation Example
+
+The bot supports natural, multi-turn conversations:
+
+```bash
+# First message
+curl -X POST "http://localhost:8000/whatsapp-bot/invoke" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Hola", "nit": "900410267", "to": "3106400794", ...}'
+
+# Response: "¡Hola! Bienvenido. Estoy aquí para ayudarte a agendar tu cita médica..."
+
+# Follow-up message (bot remembers context)
+curl -X POST "http://localhost:8000/whatsapp-bot/invoke" \
+  -H "Content-Type: application/json" \
+  -d '{"input": "Quiero agendar una cita", "nit": "900410267", "to": "3106400794", ...}'
+
+# Response: Bot continues the conversation with appointment scheduling options
 ```

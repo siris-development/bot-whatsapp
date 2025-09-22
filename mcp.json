@@ -1,0 +1,55 @@
+{
+  "name": "cronhis-citas-mcp-server",
+  "version": "1.0.0",
+  "description": "Servidor MCP para gestión de citas médicas en el client-gateway",
+  "protocol": "MCP",
+  "protocolVersion": "2024-11-05",
+  "transport": {
+    "type": "streamable_http",
+    "sse": {
+      "endpoint": "/sse",
+      "heartbeat": 1000
+    },
+    "http": {
+      "methods": ["GET", "POST"],
+      "contentType": "application/json"
+    }
+  },
+  "endpoints": {
+    "base": "https://gateway.siriscloud.com.co/api/mcp-server",
+    "local": "http://localhost:3000/api/mcp-server",
+    "sse": "/sse",
+    "initialize": "/",
+    "tools": {
+      "list": "/",
+      "call": "/"
+    },
+    "resources": {
+      "list": "/resources",
+      "read": "/resources"
+    },
+    "info": "/info"
+  },
+  "capabilities": {
+    "tools": true,
+    "resources": true,
+    "streaming": true,
+    "notifications": true,
+    "logging": false,
+    "prompts": false,
+    "experimental": {}
+  },
+  "security": {
+    "cors": {
+      "enabled": true,
+      "allowedOrigins": ["*"],
+      "allowedMethods": ["GET", "POST", "OPTIONS"],
+      "allowedHeaders": ["Content-Type", "Authorization", "Mcp-Session-Id", "Origin"]
+    },
+    "authentication": {
+      "required": false,
+      "type": "query_param",
+      "param": "nit"
+    }
+  }
+}

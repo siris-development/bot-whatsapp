@@ -1,19 +1,35 @@
-# /app /usr /lib
-FROM python:3.10-slim-buster
+FROM python:3.11-slim
 
-WORKDIR /code
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/app
 
-# Copiar requerimientos.txt 
-COPY ./requirements.txt /code/requirements.txt
+WORKDIR /app
 
-# Instalar las dependencias
-RUN pip install --no-cache-dir --upgrade -r /code/requirements.txt
+# Copy requirements first for better caching
+COPY requirements.txt /app/
 
-# Copiar los demás directorios
-COPY . .
+# Install system dependencies and Python packages
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip install --upgrade pip && \
+    pip install -r requirements.txt
 
-# Asegura que Python pueda encontrar el módulo "app"
-ENV PYTHONPATH=/code
+# Copy application code
+COPY . /app
 
-# Correr aplicación una vez el container inicie
-CMD ["fastapi", "run", "app/api.py", "--proxy-headers", "--port", "80"]
+# Create non-root user
+RUN useradd -m appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Add health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/healthz || exit 1
+
+# Production startup command
+CMD ["python", "-m", "uvicorn", "app.server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
