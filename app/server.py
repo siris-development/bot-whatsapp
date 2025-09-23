@@ -4,7 +4,7 @@ from langchain_core import __version__
 # Import our WhatsApp bot components
 from app.graph import invoke_graph
 from app.schemas.whatsapp_bot_input import WhatsAppBotInput
-from app.redis_utils import test_redis_connection, create_redis_session_factory
+from app.redis_utils import test_redis_connection, create_redis_session_factory, store_session_params, get_session_params
 from app.schemas.whatsapp_response import create_whatsapp_response
 from tools.send_to_whatsapp import send_to_whatsapp
 
@@ -38,44 +38,45 @@ async def whatsapp_bot_invoke(request: WhatsAppBotInput):
         # Add the current user message to history
         chat_history.add_user_message(request.input)
         
-        # Convert WhatsAppBotInput to graph parameters
+        # Check if we have existing session parameters
+        existing_params = get_session_params(request.to, request.phoneNumberId)
+        
+        # If no existing params, store the new ones
+        if not existing_params:
+            session_params = {
+                "nit": request.nit,
+                "idResolucion": request.idResolucion,
+                "modelProvider": request.modelProvider,
+                "users": [user.model_dump() if hasattr(user, 'model_dump') else user for user in request.users]
+            }
+            store_session_params(request.to, request.phoneNumberId, session_params)
+            print(f"📝 Stored initial session params: NIT={request.nit}, Users={len(request.users)}")
+        else:
+            print(f"📖 Using existing session params: NIT={existing_params.get('nit')}")
+        
+        # Convert WhatsAppBotInput to graph parameters (minimal state)
         graph_params = {
             "input": request.input,
-            "nit": request.nit,
             "to": request.to,
             "phoneNumberId": request.phoneNumberId,
-            "idResolucion": request.idResolucion,
-            "modelProvider": request.modelProvider,
-            "users": [user.model_dump() if hasattr(user, 'model_dump') else user for user in request.users],
-            "userSelection": request.userSelection,
-            "selectedUser": request.selectedUser
+            "modelProvider": request.modelProvider
         }
         
         # Call invoke_graph directly with chat history
         result = await invoke_graph(graph_params, chat_history=chat_history)
         
-        # Extract the response from the result
-        if isinstance(result, dict) and "messages" in result and result["messages"]:
-            last_message = result["messages"][-1]
-            if hasattr(last_message, 'content'):
-                response_content = last_message.content
-                usage_metadata = last_message.usage_metadata
-            else:
-                response_content = str(last_message)
-                usage_metadata = None
-        else:
-            response_content = str(result)
-            usage_metadata = None
+        ai_response = result["messages"][-1]
+        # usage_metadata = getattr(ai_response, 'usage_metadata', None)
 
         # Add the AI response to history
-        chat_history.add_ai_message(response_content)
+        chat_history.add_ai_message(ai_response.content)
 
         session_id = request.to + "_" + request.phoneNumberId
         
-        whatsapp_response = create_whatsapp_response(session_id, request.phoneNumberId, request.to, response_content, usage_metadata)
+        whatsapp_response = create_whatsapp_response(session_id, request.phoneNumberId, request.to, ai_response.content)
         print(whatsapp_response)
 
-        message_sent = send_to_whatsapp(response_content, session_id, usage_metadata)
+        message_sent = send_to_whatsapp(ai_response.content, session_id)
 
         if not message_sent:
             return {"message": "Failed to send message to WhatsApp"}

@@ -2,8 +2,8 @@ import json
 from datetime import datetime
 
 class Constants:
-    # base_url= "https://national-clam-ghastly.ngrok-free.app/api"
-    base_url = "https://gateway.siriscloud.com.co/api"
+    base_url= "https://national-clam-ghastly.ngrok-free.app/api"
+    # base_url = "https://gateway.siriscloud.com.co/api"
 
 def system_prompt_llm_user_selection(user_list: str, user_selection: str):
     prompt = f"""You are an intelligent assistant that helps select users from a list.

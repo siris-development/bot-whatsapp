@@ -1,7 +1,8 @@
 from dotenv import load_dotenv
 import os
 import redis
-from typing import Callable
+import json
+from typing import Callable, Dict, Any, Optional
 from langchain_community.chat_message_histories import RedisChatMessageHistory
 from langchain_core.chat_history import BaseChatMessageHistory
 
@@ -86,15 +87,100 @@ def create_redis_session_factory() -> Callable[[str], BaseChatMessageHistory]:
         redis_ttl = get_redis_ttl()
 
         # Create a unique session key combining recipient and phoneNumberId
-        session_key = f"chat_history:{to}:{phoneNumberId}"
+        session_key = get_session_key(to, phoneNumberId)
+        messages_key = f"{session_key}:messages"
         
         return RedisChatMessageHistory(
-            session_id=session_key,
+            session_id=messages_key,
             url=redis_url,
-            ttl=redis_ttl
+            ttl=redis_ttl,
+            key_prefix=""  # Remove the default "message_store:" prefix
         )
 
     return get_chat_history
+
+def get_session_key(to: str, phone_number_id: str) -> str:
+    """Generate consistent session key"""
+    return f"{to}_{phone_number_id}"
+
+def store_session_params(to: str, phone_number_id: str, params: Dict[str, Any]) -> None:
+    """Store session parameters in Redis with hierarchical structure"""
+    try:
+        redis_config = get_redis_config()
+        r = redis.from_url(redis_config["url"])
+        
+        session_key = get_session_key(to, phone_number_id)
+        params_key = f"{session_key}:session_params"
+        
+        # Store parameters as JSON
+        r.set(params_key, json.dumps(params), ex=redis_config.get("ttl", 3600))
+        
+        print(f"✅ Stored session params for {session_key}")
+        
+    except Exception as e:
+        print(f"❌ Error storing session params: {e}")
+
+def get_session_params(to: str, phone_number_id: str) -> Optional[Dict[str, Any]]:
+    """Retrieve session parameters from Redis with hierarchical structure"""
+    try:
+        redis_config = get_redis_config()
+        r = redis.from_url(redis_config["url"])
+        
+        session_key = get_session_key(to, phone_number_id)
+        params_key = f"{session_key}:session_params"
+        
+        # Get parameters from Redis
+        params_json = r.get(params_key)
+        
+        if params_json:
+            params = json.loads(params_json)
+            print(f"✅ Retrieved session params for {session_key}")
+            return params
+        else:
+            print(f"⚠️ No session params found for {session_key}")
+            return None
+            
+    except Exception as e:
+        print(f"❌ Error retrieving session params: {e}")
+        return None
+
+def clear_session_params(to: str, phone_number_id: str) -> None:
+    """Clear session parameters from Redis"""
+    try:
+        redis_config = get_redis_config()
+        r = redis.from_url(redis_config["url"])
+        
+        session_key = get_session_key(to, phone_number_id)
+        params_key = f"{session_key}:session_params"
+        
+        # Delete parameters from Redis
+        r.delete(params_key)
+        
+        print(f"✅ Cleared session params for {session_key}")
+        
+    except Exception as e:
+        print(f"❌ Error clearing session params: {e}")
+
+def clear_session_data(to: str, phone_number_id: str) -> None:
+    """Clear all session data (both messages and params) from Redis"""
+    try:
+        redis_config = get_redis_config()
+        r = redis.from_url(redis_config["url"])
+        
+        session_key = get_session_key(to, phone_number_id)
+        
+        # Delete all keys with this session prefix
+        pattern = f"{session_key}:*"
+        keys = r.keys(pattern)
+        
+        if keys:
+            r.delete(*keys)
+            print(f"✅ Cleared all session data for {session_key} ({len(keys)} keys)")
+        else:
+            print(f"⚠️ No session data found for {session_key}")
+        
+    except Exception as e:
+        print(f"❌ Error clearing session data: {e}")
 
 if __name__ == "__main__":
     print("Testing Redis connection...")
