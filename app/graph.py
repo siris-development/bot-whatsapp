@@ -4,6 +4,7 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langgraph.graph import StateGraph, END
 from langgraph.types import interrupt, Command
 from langgraph.prebuilt import ToolNode, tools_condition
+from langgraph.checkpoint.memory import MemorySaver
 from app.providers.openai_provider import OpenAIProvider
 from app.providers.anthropic_provider import AnthropicProvider
 from app.providers.ollama_provider import OllamaProvider
@@ -133,8 +134,9 @@ async def invoke_graph(graph_params: dict, chat_history=None):
             previous_messages = chat_history.messages[:-1] if len(chat_history.messages) > 1 else []
             # Prepend previous messages to create conversation context
             messages = previous_messages + messages
-            
-            graph_params["messages"] = messages
+        
+        # Always set messages in graph_params
+        graph_params["messages"] = messages
         
         # Create initial state from parameters
         state = State.create_from_params(graph_params)
@@ -233,25 +235,26 @@ async def agent_node(state: State):
         # This ensures proper tool call/response flow
         response = await chain.ainvoke({"messages": messages})
         
-        # Store tools in state for the tools node to use
-        return {"messages": [response], "tools": tools}
+        # Don't store tools in state (they're not serializable)
+        return {"messages": [response]}
         
     except Exception as e:
         import traceback
         traceback.print_exc()
         error_message = AIMessage(content=f"Lo siento, tuve un problema técnico: {str(e)}. Por favor, intenta de nuevo.")
-        return {"messages": [error_message], "tools": tools}
+        return {"messages": [error_message]}
 
 async def create_tools_node(state: State):
-    """Create a dynamic tools node using tools from state"""
-    tools = state.get("tools", [])
-    if not tools:
-        # If no tools available, return empty response
-        return {"messages": [AIMessage(content="No hay herramientas disponibles en este momento.")]}
+    """Create a dynamic tools node loading tools from MCP"""
+    # Load tools dynamically from MCP
+    tools = await load_mcp_tools_for_state(state)
     
-    # Create ToolNode with the tools from state
+    # Create ToolNode with the tools
     tool_node = ToolNode(tools)
-    return await tool_node.ainvoke(state)
+    
+    # Execute the tools
+    result = await tool_node.ainvoke(state)
+    return result
 
 def route_after_user_selection(state: State) -> str:
     """Route after user selection based on decision"""
@@ -264,6 +267,9 @@ def route_after_user_selection(state: State) -> str:
         return "retry_selection"
     else:
         return "user_rejected"
+
+# Create checkpointer for state persistence
+checkpointer = MemorySaver()
 
 # Build the graph
 builder = StateGraph(State)
@@ -295,4 +301,4 @@ builder.add_conditional_edges(
 )
 builder.add_edge("tools", "agent_node")
 
-graph = builder.compile()
+graph = builder.compile(checkpointer=checkpointer)

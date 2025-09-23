@@ -26,28 +26,3 @@ class WhatsAppBotInput(BaseModel):
     # User selection and state
     userSelection: Optional[str] = Field(default=None, description="User's selection input for user identification")
     selectedUser: Optional[User] = Field(default=None, description="Currently selected user")
-        
-    # Optional fields for backward compatibility
-    msgInit: Optional[str] = Field(default=None, description="Initial message to start the conversation (deprecated, use input)")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "input": "Hola, quiero agendar una cita médica",
-                "nit": "900410267",
-                "to": "3106400794", 
-                "phoneNumberId": "672067049329170",
-                "idResolucion": 2,
-                "modelProvider": "openai",
-                "userSelection": "1",
-                "users": [
-                    {
-                        "idUsuario": 1,
-                        "numDocUsr": "12345678",
-                        "nombreCompleto": "Juan Pérez",
-                        "puedeAgendar": "SI",
-                        "msgStatus": "Usuario autorizado para agendar citas"
-                    }
-                ]
-            }
-        }

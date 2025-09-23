@@ -2,15 +2,15 @@ from app.schemas.whatsapp_response import WhatsAppMessage, WhatsAppResponse
 import requests
 from utils.constants import Constants
 
-def send_to_whatsapp(message_content: str, session_id: str, phone_number_id: str, to: str):
+def send_to_whatsapp(message_content: str, session_id: str, usage_metadata: dict = None):
     """Send a message to WhatsApp"""
     try:
         
         post_data = WhatsAppResponse(
             sessionId=session_id,
-            phoneNumberId=phone_number_id,
-            to=to,
-            messages=[WhatsAppMessage(type="text", content=str(message_content))]
+            phoneNumberId=session_id.split("_")[1],
+            to=session_id.split("_")[0],
+            messages=[WhatsAppMessage(type="text", content=str(message_content), usage_metadata=usage_metadata)]
         )
         
         post_data_dict = post_data.model_dump()
@@ -23,6 +23,7 @@ def send_to_whatsapp(message_content: str, session_id: str, phone_number_id: str
         )
         resp.raise_for_status()
         data = resp.json()
+        print(data)
 
         return True
 

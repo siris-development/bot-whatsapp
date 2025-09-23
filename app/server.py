@@ -6,6 +6,7 @@ from app.graph import invoke_graph
 from app.schemas.whatsapp_bot_input import WhatsAppBotInput
 from app.redis_utils import test_redis_connection, create_redis_session_factory
 from app.schemas.whatsapp_response import create_whatsapp_response
+from tools.send_to_whatsapp import send_to_whatsapp
 
 # Define the minimum required version as (0, 1, 0)
 MIN_VERSION_LANGCHAIN_CORE = (0, 1, 0)
@@ -58,18 +59,29 @@ async def whatsapp_bot_invoke(request: WhatsAppBotInput):
             last_message = result["messages"][-1]
             if hasattr(last_message, 'content'):
                 response_content = last_message.content
+                usage_metadata = last_message.usage_metadata
             else:
                 response_content = str(last_message)
+                usage_metadata = None
         else:
             response_content = str(result)
+            usage_metadata = None
 
         # Add the AI response to history
         chat_history.add_ai_message(response_content)
-        
-        whatsapp_response = create_whatsapp_response(request.to, request.phoneNumberId, request.input, response_content)
 
+        session_id = request.to + "_" + request.phoneNumberId
+        
+        whatsapp_response = create_whatsapp_response(session_id, request.phoneNumberId, request.to, response_content, usage_metadata)
+        print(whatsapp_response)
+
+        message_sent = send_to_whatsapp(response_content, session_id, usage_metadata)
+
+        if not message_sent:
+            return {"message": "Failed to send message to WhatsApp"}
+        
         # Return the result
-        return whatsapp_response.model_dump()
+        return {"message": "Message sent to WhatsApp"}
             
     except Exception as e:
         print(f"Error in whatsapp_bot_invoke: {str(e)}")
